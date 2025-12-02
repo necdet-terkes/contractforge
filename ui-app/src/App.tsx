@@ -24,17 +24,6 @@ type PricingPart = {
   currency: string;
 };
 
-type CheckoutPreview = {
-  product: ProductPart;
-  user: UserPart;
-  pricing: PricingPart;
-};
-
-type ApiError = {
-  error: string;
-  message: string;
-};
-
 // For admin pricing rules view
 type DiscountRule = {
   id: string;
@@ -62,6 +51,36 @@ const PRICING_API_BASE_URL =
 // Checkout View (existing orchestrator-based flow)
 // =========================================================
 
+const PRODUCT_IMAGE =
+  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=60";
+
+const LOYALTY_META: Record<
+  "BRONZE" | "SILVER" | "GOLD",
+  { label: string; desc: string; color: string; bg: string; emoji: string }
+> = {
+  BRONZE: {
+    label: "Bronze",
+    desc: "Starter tier, light savings",
+    color: "#b87333",
+    bg: "rgba(184,115,51,0.12)",
+    emoji: "🥉"
+  },
+  SILVER: {
+    label: "Silver",
+    desc: "Steady perks and better deals",
+    color: "#8a8d93",
+    bg: "rgba(138,141,147,0.12)",
+    emoji: "🥈"
+  },
+  GOLD: {
+    label: "Gold",
+    desc: "Top benefits and strongest discounts",
+    color: "#d4af37",
+    bg: "rgba(212,175,55,0.12)",
+    emoji: "🥇"
+  }
+};
+
 const CheckoutView: React.FC = () => {
   // Products
   const [products, setProducts] = useState<ProductPart[]>([]);
@@ -73,14 +92,14 @@ const CheckoutView: React.FC = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
 
-  // Selections
-  const [productId, setProductId] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
-  // Preview + errors
-  const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<CheckoutPreview | null>(null);
-  const [error, setError] = useState<ApiError | null>(null);
+  // Pricing per product for selected user
+  const [pricingQuotes, setPricingQuotes] = useState<
+    Record<string, PricingPart>
+  >({});
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
 
   // Load products from orchestrator
   useEffect(() => {
@@ -109,12 +128,7 @@ const CheckoutView: React.FC = () => {
           stock: p.stock,
           basePrice: p.price
         }));
-
         setProducts(mapped);
-
-        if (mapped.length > 0) {
-          setProductId(mapped[0].id);
-        }
       } catch (err: any) {
         setProductsError(err.message ?? "Failed to load products");
       } finally {
@@ -150,10 +164,6 @@ const CheckoutView: React.FC = () => {
         }));
 
         setUsers(mapped);
-
-        if (mapped.length > 0) {
-          setUserId(mapped[0].id);
-        }
       } catch (err: any) {
         setUsersError(err.message ?? "Failed to load users");
       } finally {
@@ -164,50 +174,69 @@ const CheckoutView: React.FC = () => {
     loadUsers();
   }, []);
 
-  // Preview request
-  async function handleFetchPreview() {
-    setLoading(true);
-    setPreview(null);
-    setError(null);
-
-    const query = new URLSearchParams({
-      productId,
-      userId
-    });
-
-    try {
-      const resp = await fetch(
-        `${ORCHESTRATOR_BASE_URL}/checkout/preview?${query.toString()}`,
-        {
-          headers: {
-            Accept: "application/json"
-          }
-        }
-      );
-
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        setError(data);
-      } else {
-        setPreview(data);
+  useEffect(() => {
+    async function loadPricingForUser() {
+      if (!selectedUserId || products.length === 0) {
+        setPricingQuotes({});
+        setPricingError(null);
+        setPricingLoading(false);
+        return;
       }
-    } catch (err: any) {
-      setError({
-        error: "NETWORK_ERROR",
-        message: err.message ?? "Failed to call orchestrator-api"
-      });
-    } finally {
-      setLoading(false);
+
+      const user = users.find((u) => u.id === selectedUserId);
+      if (!user) {
+        setPricingQuotes({});
+        return;
+      }
+
+      setPricingLoading(true);
+      setPricingError(null);
+
+      try {
+        const entries = await Promise.all(
+          products.map(async (product) => {
+            const params = new URLSearchParams({
+              productId: product.id,
+              userId: user.id,
+              basePrice: String(product.basePrice),
+              loyaltyTier: user.loyaltyTier
+            });
+
+            const resp = await fetch(
+              `${PRICING_API_BASE_URL}/pricing/quote?${params.toString()}`,
+              { headers: { Accept: "application/json" } }
+            );
+            const data = await resp.json();
+            if (!resp.ok) {
+              throw new Error(data?.message ?? "Failed to calculate pricing");
+            }
+            return [product.id, data] as const;
+          })
+        );
+
+        setPricingQuotes(Object.fromEntries(entries));
+      } catch (err: any) {
+        setPricingError(err.message ?? "Failed to calculate pricing");
+        setPricingQuotes({});
+      } finally {
+        setPricingLoading(false);
+      }
     }
-  }
+
+    loadPricingForUser();
+  }, [selectedUserId, products, users]);
+
+  const formatPrice = (value: number) => `£${value.toFixed(2)}`;
+  const tierStyle = (tier: UserPart["loyaltyTier"]) =>
+    LOYALTY_META[tier as keyof typeof LOYALTY_META] ??
+    LOYALTY_META.BRONZE;
 
   return (
     <>
       <h1>ContractForge – Checkout Preview</h1>
       <p style={{ color: "#555", marginBottom: "1.5rem" }}>
-        Select a product and a user, then fetch the combined preview from the
-        orchestrator API.
+        Browse the catalog with stock and prices; pick a user to instantly see
+        their discounted pricing.
       </p>
 
       {(productsError || usersError) && (
@@ -235,67 +264,125 @@ const CheckoutView: React.FC = () => {
         </div>
       )}
 
-      <div
+      <section
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.75rem",
-          marginBottom: "1.5rem"
+          marginBottom: "1.25rem",
+          padding: "0.75rem 1rem",
+          border: "1px solid #e2e8f0",
+          borderRadius: "8px",
+          background:
+            "linear-gradient(135deg, rgba(236,245,255,0.9), rgba(255,255,255,0.9))",
+          boxShadow: "0 6px 18px rgba(15,23,42,0.08)"
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <label htmlFor="product-select">Product:</label>
-          <select
-            id="product-select"
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            disabled={loadingProducts || products.length === 0}
-          >
-            {loadingProducts && <option>Loading products...</option>}
-            {!loadingProducts &&
-              products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.id}) – stock: {p.stock}
-                </option>
-              ))}
-          </select>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
+              Choose a user to preview loyalty discounts
+            </div>
+            <div style={{ color: "#555", fontSize: "0.9rem" }}>
+              No selection = base prices. Gold/Silver/Bronze tiers show the
+              discounted totals below.
+            </div>
+          </div>
+          {selectedUserId && (
+            <button
+              onClick={() => setSelectedUserId("")}
+              style={{
+                border: "1px solid #d0d7e2",
+                background: "#fff",
+                padding: "0.35rem 0.75rem",
+                borderRadius: "6px",
+                cursor: "pointer"
+              }}
+            >
+              Clear selection
+            </button>
+          )}
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <label htmlFor="user-select">User:</label>
-          <select
-            id="user-select"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            disabled={loadingUsers || users.length === 0}
-          >
-            {loadingUsers && <option>Loading users...</option>}
-            {!loadingUsers &&
-              users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.loyaltyTier})
-                </option>
-              ))}
-          </select>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "0.75rem",
+            marginTop: "0.75rem"
+          }}
+        >
+          {loadingUsers ? (
+            <p style={{ margin: 0 }}>Loading users...</p>
+          ) : users.length === 0 ? (
+            <p style={{ margin: 0, color: "#777" }}>No users found.</p>
+          ) : (
+            users.map((u) => {
+              const meta = tierStyle(u.loyaltyTier);
+              const isActive = selectedUserId === u.id;
+              return (
+                <button
+                  key={u.id}
+                  onClick={() =>
+                    setSelectedUserId((prev) => (prev === u.id ? "" : u.id))
+                  }
+                  style={{
+                    textAlign: "left",
+                    border: isActive ? `2px solid ${meta.color}` : "1px solid #dbe2ef",
+                    backgroundColor: isActive ? "rgba(13,110,253,0.06)" : "#fff",
+                    borderRadius: "10px",
+                    padding: "0.75rem",
+                    cursor: "pointer",
+                    boxShadow: isActive
+                      ? "0 10px 24px rgba(0,0,0,0.08)"
+                      : "0 6px 16px rgba(0,0,0,0.04)",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "0.35rem"
+                    }}
+                  >
+                    <span style={{ fontWeight: 700 }}>{u.name}</span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.35rem",
+                        fontSize: "0.85rem",
+                        color: meta.color,
+                        backgroundColor: meta.bg,
+                        padding: "0.2rem 0.55rem",
+                        borderRadius: "999px",
+                        fontWeight: 700
+                      }}
+                    >
+                      {meta.emoji} {meta.label}
+                    </span>
+                  </div>
+                  <div style={{ color: "#667085", fontSize: "0.9rem" }}>
+                    ID: {u.id}
+                  </div>
+                  <div style={{ color: "#475467", marginTop: "0.35rem" }}>
+                    {meta.desc}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
+      </section>
 
-        <div>
-          <button
-            onClick={handleFetchPreview}
-            disabled={
-              loading ||
-              !productId ||
-              !userId ||
-              products.length === 0 ||
-              users.length === 0
-            }
-          >
-            {loading ? "Loading..." : "Get Preview"}
-          </button>
-        </div>
-      </div>
-
-      {error && (
+      {pricingError && (
         <div
           style={{
             border: "1px solid #f5c2c7",
@@ -306,72 +393,120 @@ const CheckoutView: React.FC = () => {
             marginBottom: "1rem"
           }}
         >
-          <strong>Error:</strong> {error.error}
-          <br />
-          <span>{error.message}</span>
+          {pricingError}
         </div>
       )}
 
-      {preview && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "1rem"
-          }}
-        >
-          <div
-            style={{
-              border: "1px solid #ddd",
-              padding: "1rem",
-              borderRadius: "4px"
-            }}
-          >
-            <h2>Product</h2>
-            <p>
-              <strong>ID:</strong> {preview.product.id}
-            </p>
-            <p>
-              <strong>Name:</strong> {preview.product.name}
-            </p>
-            <p>
-              <strong>Stock:</strong> {preview.product.stock}
-            </p>
-            <p>
-              <strong>Base Price:</strong> £{preview.product.basePrice}
-            </p>
-          </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "1rem"
+        }}
+      >
+        {products.map((product) => {
+          const quote = pricingQuotes[product.id];
+          const discountPercent =
+            quote && quote.basePrice > 0
+              ? Math.round((quote.discount / quote.basePrice) * 100)
+              : 0;
+          return (
+            <div
+              key={product.id}
+              style={{
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                overflow: "hidden",
+                background: "#fff",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
+              }}
+            >
+              <div
+                style={{
+                  height: "140px",
+                  backgroundImage: `url(${PRODUCT_IMAGE})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center"
+                }}
+              />
+              <div style={{ padding: "0.75rem 1rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "0.4rem"
+                  }}
+                >
+                  <h3 style={{ margin: 0 }}>{product.name}</h3>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: product.stock > 0 ? "#0f5132" : "#842029",
+                      backgroundColor:
+                        product.stock > 0 ? "#d1e7dd" : "#f8d7da",
+                      padding: "0.15rem 0.4rem",
+                      borderRadius: "4px"
+                    }}
+                  >
+                    {product.stock > 0 ? "In stock" : "Out of stock"}
+                  </span>
+                </div>
+                <p style={{ margin: "0 0 0.25rem", color: "#666" }}>
+                  ID: {product.id}
+                </p>
+                <p style={{ margin: "0 0 0.5rem", color: "#666" }}>
+                  Stock: {product.stock}
+                </p>
+                {!selectedUserId || !quote ? (
+                  <p style={{ margin: 0, fontWeight: 600 }}>
+                    Price: {formatPrice(product.basePrice)}
+                  </p>
+                ) : (
+                  <div style={{ marginTop: "0.35rem" }}>
+                    <div style={{ color: "#888", textDecoration: "line-through" }}>
+                      {formatPrice(product.basePrice)}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <span
+                        style={{
+                          fontSize: "1.1rem",
+                          fontWeight: 700,
+                          color: "#0f5132"
+                        }}
+                      >
+                        {formatPrice(quote.finalPrice)}
+                      </span>
+                      <span
+                        style={{
+                          color: "#0f5132",
+                          backgroundColor: "#d1e7dd",
+                          borderRadius: "999px",
+                          padding: "0.15rem 0.5rem",
+                          fontWeight: 600
+                        }}
+                      >
+                        %{discountPercent} discount
+                      </span>
+                    </div>
+                    <div style={{ color: "#888", fontSize: "0.85rem" }}>
+                      Saved {formatPrice(quote.discount)} via pricing rules
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-          <div
-            style={{
-              border: "1px solid #ddd",
-              padding: "1rem",
-              borderRadius: "4px"
-            }}
-          >
-            <h2>User & Pricing</h2>
-            <p>
-              <strong>User:</strong> {preview.user.name} (
-              {preview.user.loyaltyTier})
-            </p>
-            <p>
-              <strong>Base Price:</strong> £{preview.pricing.basePrice}
-            </p>
-            <p>
-              <strong>Discount:</strong> £{preview.pricing.discount}
-            </p>
-            <p>
-              <strong>Final Price:</strong> £{preview.pricing.finalPrice}{" "}
-              {preview.pricing.currency}
-            </p>
-          </div>
-        </div>
+      {products.length === 0 && !loadingProducts && (
+        <p style={{ color: "#777" }}>No products found.</p>
       )}
 
-      {!preview && !error && !loading && (
-        <p style={{ color: "#777" }}>
-          Select a product and user, then click "Get Preview" to see the
-          orchestrated response.
+      {pricingLoading && selectedUserId && (
+        <p style={{ color: "#555", marginTop: "0.75rem" }}>
+          Calculating discounts...
         </p>
       )}
     </>
@@ -541,6 +676,37 @@ const AdminView: React.FC = () => {
     }
   }
 
+  async function handleUpdateUser(user: UserPart) {
+    const name = window.prompt("Update name", user.name);
+    if (name === null) return;
+    const loyalty = window
+      .prompt("Update loyalty tier (BRONZE/SILVER/GOLD)", user.loyaltyTier)
+      ?.toUpperCase();
+    if (loyalty === null) return;
+
+    try {
+      const resp = await fetch(`${USER_API_BASE_URL}/users/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          loyaltyTier: loyalty?.trim() || undefined
+        })
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        setUsersError(data?.message ?? "Failed to update user");
+        return;
+      }
+      await loadUsers();
+    } catch (err: any) {
+      setUsersError(err.message ?? "Failed to update user");
+    }
+  }
+
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
     setProductsError(null);
@@ -591,6 +757,45 @@ const AdminView: React.FC = () => {
       await loadProducts();
     } catch (err: any) {
       setProductsError(err.message ?? "Failed to delete product");
+    }
+  }
+
+  async function handleUpdateProduct(product: ProductPart) {
+    const name = window.prompt("Update product name", product.name);
+    if (name === null) return;
+    const stockRaw = window.prompt("Update stock (integer)", String(product.stock));
+    if (stockRaw === null) return;
+    const priceRaw = window.prompt(
+      "Update price",
+      String(product.basePrice)
+    );
+    if (priceRaw === null) return;
+
+    const stock = Number(stockRaw);
+    const price = Number(priceRaw);
+
+    try {
+      const resp = await fetch(`${INVENTORY_API_BASE_URL}/products/${product.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          stock,
+          price
+        })
+      });
+
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        setProductsError(data?.message ?? "Failed to update product");
+        return;
+      }
+      await loadProducts();
+    } catch (err: any) {
+      setProductsError(err.message ?? "Failed to update product");
     }
   }
 
@@ -654,6 +859,66 @@ const AdminView: React.FC = () => {
       await loadRules();
     } catch (err: any) {
       setRulesError(err.message ?? "Failed to delete discount rule");
+    }
+  }
+
+  async function handleUpdateRule(rule: DiscountRule) {
+    const loyaltyInput = window
+      .prompt(
+        "Update loyalty tier (BRONZE/SILVER/GOLD) or leave as-is",
+        rule.loyaltyTier
+      )
+      ?.toUpperCase();
+    if (loyaltyInput === null) return;
+
+    const rateRaw = window.prompt(
+      "Update rate (0-1)",
+      String(rule.rate)
+    );
+    if (rateRaw === null) return;
+
+    const description = window.prompt(
+      "Update description",
+      rule.description || ""
+    );
+    if (description === null) return;
+
+    const activeRaw = window.prompt(
+      "Active? (true/false)",
+      String(rule.active)
+    );
+    if (activeRaw === null) return;
+
+    const updates: any = {
+      loyaltyTier: loyaltyInput?.trim() || undefined,
+      rate: rateRaw.trim() === "" ? undefined : Number(rateRaw),
+      description: description.trim(),
+      active:
+        activeRaw.trim().toLowerCase() === "true"
+          ? true
+          : activeRaw.trim().toLowerCase() === "false"
+          ? false
+          : rule.active
+    };
+
+    try {
+      const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/rules/${rule.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(updates)
+      });
+
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        setRulesError(data?.message ?? "Failed to update discount rule");
+        return;
+      }
+      await loadRules();
+    } catch (err: any) {
+      setRulesError(err.message ?? "Failed to update discount rule");
     }
   }
 
@@ -751,7 +1016,8 @@ const AdminView: React.FC = () => {
                     <td>{u.id}</td>
                     <td>{u.name}</td>
                     <td>{u.loyaltyTier}</td>
-                    <td align="right">
+                    <td align="right" style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                      <button onClick={() => handleUpdateUser(u)}>Edit</button>
                       <button onClick={() => handleDeleteUser(u.id)}>
                         Delete
                       </button>
@@ -862,7 +1128,10 @@ const AdminView: React.FC = () => {
                     <td>{p.name}</td>
                     <td align="right">{p.stock}</td>
                     <td align="right">£{p.basePrice}</td>
-                    <td align="right">
+                    <td align="right" style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                      <button onClick={() => handleUpdateProduct(p)}>
+                        Edit
+                      </button>
                       <button onClick={() => handleDeleteProduct(p.id)}>
                         Delete
                       </button>
@@ -991,7 +1260,10 @@ const AdminView: React.FC = () => {
                     <td align="right">{r.rate}</td>
                     <td>{r.description}</td>
                     <td align="center">{r.active ? "✅" : "❌"}</td>
-                    <td align="right">
+                    <td align="right" style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                      <button onClick={() => handleUpdateRule(r)}>
+                        Edit
+                      </button>
                       <button onClick={() => handleDeleteRule(r.id)}>
                         Delete
                       </button>

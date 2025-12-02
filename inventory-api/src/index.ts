@@ -1,6 +1,7 @@
 // inventory-api/src/index.ts
 
 import express, { Request, Response } from "express";
+import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./swagger";
 import {
@@ -14,6 +15,11 @@ import {
 const app = express();
 const PORT = process.env.PORT || 4001;
 
+app.use(
+  cors({
+    origin: "http://localhost:5173"
+  })
+);
 app.use(express.json());
 
 // Swagger UI

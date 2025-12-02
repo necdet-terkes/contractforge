@@ -1,0 +1,32 @@
+{
+  "name": "contractforge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ContractForge – contract-driven mocks and test POC",
+  "scripts": {
+    "install:all": "npm install",
+    "build": "npm run build -ws",
+    "test": "npm test -ws",
+    "start:orchestrator": "npm run start --workspace orchestrator-api",
+    "dev:orchestrator": "npm run dev --workspace orchestrator-api",
+    "start:inventory": "npm run start --workspace inventory-api",
+    "dev:inventory": "npm run dev --workspace inventory-api",
+    "start:user": "npm run start --workspace user-api",
+    "dev:user": "npm run dev --workspace user-api",
+    "start:pricing": "npm run start --workspace pricing-api",
+    "dev:pricing": "npm run dev --workspace pricing-api",
+    "dev:ui": "npm run dev --workspace ui-app",
+    "pact-broker:up": "docker-compose up -d pact-broker",
+    "pact-broker:down": "docker-compose down"
+  },
+  "workspaces": [
+    "orchestrator-api",
+    "inventory-api",
+    "user-api",
+    "pricing-api",
+    "ui-app"
+  ],
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,10 +1,15 @@
+// user-api/src/users.ts
+
+export type LoyaltyTier = "BRONZE" | "SILVER" | "GOLD";
+
 export type User = {
   id: string;
   name: string;
-  loyaltyTier: "BRONZE" | "SILVER" | "GOLD";
+  loyaltyTier: LoyaltyTier;
 };
 
-export const users: User[] = [
+// Initial seed data for the in-memory repository
+export const initialUsers: User[] = [
   {
     id: "u1",
     name: "Alice Example",
@@ -19,9 +24,15 @@ export const users: User[] = [
     id: "u3",
     name: "Charlie Example",
     loyaltyTier: "BRONZE"
+  },
+  {
+    id: "u4",
+    name: "Diana Shopper",
+    loyaltyTier: "GOLD"
+  },
+  {
+    id: "u5",
+    name: "Ethan Frequent",
+    loyaltyTier: "SILVER"
   }
 ];
-
-export function getUserById(id: string): User | undefined {
-  return users.find((u) => u.id === id);
-}

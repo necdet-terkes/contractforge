@@ -1,6 +1,8 @@
 // pricing-api/src/discountRules.ts
 
-export type LoyaltyTier = "BRONZE" | "SILVER" | "GOLD";
+import { LoyaltyTier } from "../../types/loyaltyTier";
+
+export type { LoyaltyTier };
 
 export type DiscountRule = {
   id: string;

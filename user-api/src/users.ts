@@ -1,6 +1,8 @@
 // user-api/src/users.ts
 
-export type LoyaltyTier = "BRONZE" | "SILVER" | "GOLD";
+import { LoyaltyTier } from "../../types/loyaltyTier";
+
+export type { LoyaltyTier };
 
 export type User = {
   id: string;

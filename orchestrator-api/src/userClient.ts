@@ -1,4 +1,5 @@
-import axios from "axios";
+import { HttpClient } from "./utils/httpClient";
+import { config } from "./config";
 
 export type UserInfo = {
   id: string;
@@ -6,44 +7,26 @@ export type UserInfo = {
   loyaltyTier: "BRONZE" | "SILVER" | "GOLD";
 };
 
-const USER_API_URL = process.env.USER_API_URL || "http://localhost:4002";
+const client = new HttpClient({
+  baseURL: config.userApiUrl,
+  serviceName: "user-api"
+});
 
 export async function fetchUserById(userId: string): Promise<UserInfo> {
-  const url = `${USER_API_URL}/users/${userId}`;
-
   try {
-    const response = await axios.get<UserInfo>(url, {
-      headers: { Accept: "application/json" }
-    });
-    return response.data;
+    return await client.get<UserInfo>(`/users/${userId}`);
   } catch (error: any) {
-    if (error.response && error.response.status === 404) {
+    if (error.code === "USER_API_NOT_FOUND") {
       const e = new Error(
-        error.response.data?.message ||
-          `User with id '${userId}' was not found`
+        error.message || `User with id '${userId}' was not found`
       );
       (e as any).code = "USER_NOT_FOUND";
       throw e;
     }
-
-    const e = new Error("Failed to fetch user from user-api");
-    (e as any).code = "USER_API_ERROR";
-    throw e;
+    throw error;
   }
 }
 
-// NEW: fetch all users
 export async function fetchAllUsers(): Promise<UserInfo[]> {
-  const url = `${USER_API_URL}/users`;
-
-  try {
-    const response = await axios.get<UserInfo[]>(url, {
-      headers: { Accept: "application/json" }
-    });
-    return response.data;
-  } catch (_error: any) {
-    const e = new Error("Failed to fetch user list from user-api");
-    (e as any).code = "USER_API_ERROR";
-    throw e;
-  }
+  return await client.get<UserInfo[]>("/users");
 }

@@ -168,8 +168,8 @@ Standardized tooling is in place across the monorepo.
 
 - **Root scripts**
   - `npm run test:unit` — runs all Jest tests across workspaces
-  - `npm run test:ui` — runs Playwright tests (ui-app)
-  - `npm run test:all` — runs unit + UI tests together
+  - `npm run test:e2e` — runs Playwright E2E tests (ui-app)
+  - `npm run test:all` — runs unit + E2E tests together
 - `npm run check` — typecheck + lint + unit tests
 
 - **Per-service Jest** (API services)
@@ -178,14 +178,15 @@ Standardized tooling is in place across the monorepo.
   - `npm test --workspace user-api`
   - `npm test --workspace pricing-api`
 
-- **Playwright (UI)**
-  - `npm test --workspace ui-app`
+- **Playwright E2E (UI)**
+  - `npm run test:e2e` — runs all E2E tests (mock + real mode)
+  - `npm run test:e2e --workspace ui-app` — runs from ui-app directory
   - Config: `ui-app/playwright.config.ts`
-  - Example: `ui-app/tests/example.spec.ts`
+  - Tests: `ui-app/e2e/tests/*.spec.ts`
   - **Note**: When running tests locally with mocks, start mocks separately first:
     ```bash
     npm run mocks:dev  # Starts mocks in background
-    npm test --workspace ui-app
+    npm run test:e2e
     ```
     In CI, mocks are automatically started before tests.
 

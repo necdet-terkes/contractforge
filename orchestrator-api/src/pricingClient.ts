@@ -1,5 +1,5 @@
-import { HttpClient } from "./utils/httpClient";
-import { config } from "./config";
+import { HttpClient } from './utils/httpClient';
+import { config } from './config';
 
 export type PricingInfo = {
   productId: string;
@@ -12,7 +12,7 @@ export type PricingInfo = {
 
 const client = new HttpClient({
   baseURL: config.pricingApiUrl,
-  serviceName: "pricing-api"
+  serviceName: 'pricing-api',
 });
 
 export async function fetchPricingQuote(params: {
@@ -21,12 +21,12 @@ export async function fetchPricingQuote(params: {
   basePrice: number;
   loyaltyTier: string;
 }): Promise<PricingInfo> {
-  return await client.get<PricingInfo>("/pricing/quote", {
+  return await client.get<PricingInfo>('/pricing/quote', {
     params: {
       productId: params.productId,
       userId: params.userId,
       basePrice: String(params.basePrice),
-      loyaltyTier: params.loyaltyTier
-    }
+      loyaltyTier: params.loyaltyTier,
+    },
   });
 }

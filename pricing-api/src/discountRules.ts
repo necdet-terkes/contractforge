@@ -1,6 +1,6 @@
 // pricing-api/src/discountRules.ts
 
-import { LoyaltyTier } from "../../types/loyaltyTier";
+import { LoyaltyTier } from '../../types/loyaltyTier';
 
 export type { LoyaltyTier };
 
@@ -15,24 +15,24 @@ export type DiscountRule = {
 // Initial in-memory seed rules
 export const initialDiscountRules: DiscountRule[] = [
   {
-    id: "rule-gold-default",
-    loyaltyTier: "GOLD",
+    id: 'rule-gold-default',
+    loyaltyTier: 'GOLD',
     rate: 0.3,
-    description: "Base discount for GOLD customers",
-    active: true
+    description: 'Base discount for GOLD customers',
+    active: true,
   },
   {
-    id: "rule-silver-default",
-    loyaltyTier: "SILVER",
+    id: 'rule-silver-default',
+    loyaltyTier: 'SILVER',
     rate: 0.15,
-    description: "Base discount for SILVER customers",
-    active: true
+    description: 'Base discount for SILVER customers',
+    active: true,
   },
   {
-    id: "rule-bronze-default",
-    loyaltyTier: "BRONZE",
+    id: 'rule-bronze-default',
+    loyaltyTier: 'BRONZE',
     rate: 0,
-    description: "No default discount for BRONZE customers",
-    active: true
-  }
+    description: 'No default discount for BRONZE customers',
+    active: true,
+  },
 ];

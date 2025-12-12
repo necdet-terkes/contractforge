@@ -1,6 +1,6 @@
 // user-api/src/userRepository.ts
 
-import { initialUsers, LoyaltyTier, User } from "./users";
+import { initialUsers, LoyaltyTier, User } from './users';
 
 let users: User[] = [...initialUsers];
 
@@ -21,14 +21,14 @@ export async function createUser(input: {
   const exists = users.some((u) => u.id === input.id);
   if (exists) {
     const error = new Error(`User with id '${input.id}' already exists`);
-    (error as any).code = "USER_ALREADY_EXISTS";
+    (error as any).code = 'USER_ALREADY_EXISTS';
     throw error;
   }
 
   const newUser: User = {
     id: input.id,
     name: input.name,
-    loyaltyTier: input.loyaltyTier
+    loyaltyTier: input.loyaltyTier,
   };
 
   users.push(newUser);
@@ -37,19 +37,19 @@ export async function createUser(input: {
 
 export async function updateUser(
   id: string,
-  updates: Partial<Pick<User, "name" | "loyaltyTier">>
+  updates: Partial<Pick<User, 'name' | 'loyaltyTier'>>
 ): Promise<User> {
   const idx = users.findIndex((u) => u.id === id);
   if (idx === -1) {
     const error = new Error(`User with id '${id}' not found`);
-    (error as any).code = "USER_NOT_FOUND";
+    (error as any).code = 'USER_NOT_FOUND';
     throw error;
   }
 
   const current = users[idx];
   const updated: User = {
     ...current,
-    ...updates
+    ...updates,
   };
 
   users[idx] = updated;
@@ -60,7 +60,7 @@ export async function deleteUser(id: string): Promise<void> {
   const idx = users.findIndex((u) => u.id === id);
   if (idx === -1) {
     const error = new Error(`User with id '${id}' not found`);
-    (error as any).code = "USER_NOT_FOUND";
+    (error as any).code = 'USER_NOT_FOUND';
     throw error;
   }
 

@@ -10,7 +10,7 @@ export type ProductPart = {
 export type UserPart = {
   id: string;
   name: string;
-  loyaltyTier: "BRONZE" | "SILVER" | "GOLD";
+  loyaltyTier: 'BRONZE' | 'SILVER' | 'GOLD';
 };
 
 export type PricingPart = {
@@ -24,7 +24,7 @@ export type PricingPart = {
 
 export type DiscountRule = {
   id: string;
-  loyaltyTier: "BRONZE" | "SILVER" | "GOLD";
+  loyaltyTier: 'BRONZE' | 'SILVER' | 'GOLD';
   rate: number;
   description?: string;
   active: boolean;

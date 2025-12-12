@@ -1,4 +1,4 @@
-declare module "swagger-jsdoc" {
+declare module 'swagger-jsdoc' {
   export interface Options {
     definition: {
       openapi: string;

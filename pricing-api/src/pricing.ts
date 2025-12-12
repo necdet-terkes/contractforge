@@ -1,7 +1,7 @@
 // pricing-api/src/pricing.ts
 
-import { LoyaltyTier } from "./discountRules";
-import { findActiveRuleForTier } from "./discountRuleRepository";
+import { LoyaltyTier } from './discountRules';
+import { findActiveRuleForTier } from './discountRuleRepository';
 
 export type PricingQuote = {
   productId: string;
@@ -30,6 +30,6 @@ export async function calculatePricing(
     basePrice,
     discount,
     finalPrice,
-    currency: "GBP"
+    currency: 'GBP',
   };
 }

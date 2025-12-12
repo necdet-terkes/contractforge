@@ -1,54 +1,46 @@
 // src/CheckoutView.tsx
 
-import React, { useEffect, useState } from "react";
-import {
-  ProductPart,
-  UserPart,
-  PricingPart
-} from "./types";
-import {
-  ORCHESTRATOR_BASE_URL,
-  PRICING_API_BASE_URL,
-  PRODUCT_IMAGE
-} from "./config";
-import { Card } from "./components/Card";
-import { SectionHeader } from "./components/SectionHeader";
-import { ErrorMessage } from "./components/ErrorMessage";
-import { Button } from "./components/Button";
-import { useTheme } from "./contexts/ThemeContext";
-import { spacing, getColors } from "./styles";
+import React, { useEffect, useState } from 'react';
+import { ProductPart, UserPart, PricingPart } from './types';
+import { ORCHESTRATOR_BASE_URL, PRICING_API_BASE_URL, PRODUCT_IMAGE } from './config';
+import { Card } from './components/Card';
+import { SectionHeader } from './components/SectionHeader';
+import { ErrorMessage } from './components/ErrorMessage';
+import { Button } from './components/Button';
+import { useTheme } from './contexts/ThemeContext';
+import { spacing, getColors } from './styles';
 
 const LOYALTY_META: Record<
-  "BRONZE" | "SILVER" | "GOLD",
+  'BRONZE' | 'SILVER' | 'GOLD',
   { label: string; desc: string; color: string; bg: string; emoji: string }
 > = {
   BRONZE: {
-    label: "Bronze",
-    desc: "Starter tier, light savings",
-    color: "#b87333",
-    bg: "rgba(184,115,51,0.12)",
-    emoji: "🥉"
+    label: 'Bronze',
+    desc: 'Starter tier, light savings',
+    color: '#b87333',
+    bg: 'rgba(184,115,51,0.12)',
+    emoji: '🥉',
   },
   SILVER: {
-    label: "Silver",
-    desc: "Steady perks and better deals",
-    color: "#8a8d93",
-    bg: "rgba(138,141,147,0.12)",
-    emoji: "🥈"
+    label: 'Silver',
+    desc: 'Steady perks and better deals',
+    color: '#8a8d93',
+    bg: 'rgba(138,141,147,0.12)',
+    emoji: '🥈',
   },
   GOLD: {
-    label: "Gold",
-    desc: "Top benefits and strongest discounts",
-    color: "#d4af37",
-    bg: "rgba(212,175,55,0.12)",
-    emoji: "🥇"
-  }
+    label: 'Gold',
+    desc: 'Top benefits and strongest discounts',
+    color: '#d4af37',
+    bg: 'rgba(212,175,55,0.12)',
+    emoji: '🥇',
+  },
 };
 
 export const CheckoutView: React.FC = () => {
   const { theme } = useTheme();
   const colors = getColors(theme);
-  
+
   // Products
   const [products, setProducts] = useState<ProductPart[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -59,12 +51,10 @@ export const CheckoutView: React.FC = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
 
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   // Pricing per product for selected user
-  const [pricingQuotes, setPricingQuotes] = useState<
-    Record<string, PricingPart>
-  >({});
+  const [pricingQuotes, setPricingQuotes] = useState<Record<string, PricingPart>>({});
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
 
@@ -75,17 +65,14 @@ export const CheckoutView: React.FC = () => {
       setProductsError(null);
 
       try {
-        const resp = await fetch(
-          `${ORCHESTRATOR_BASE_URL}/catalog/products`,
-          {
-            headers: { Accept: "application/json" }
-          }
-        );
+        const resp = await fetch(`${ORCHESTRATOR_BASE_URL}/catalog/products`, {
+          headers: { Accept: 'application/json' },
+        });
 
         const data = await resp.json();
 
         if (!resp.ok) {
-          setProductsError(data?.message ?? "Failed to load products");
+          setProductsError(data?.message ?? 'Failed to load products');
           return;
         }
 
@@ -93,11 +80,11 @@ export const CheckoutView: React.FC = () => {
           id: p.id,
           name: p.name,
           stock: p.stock,
-          basePrice: p.price
+          basePrice: p.price,
         }));
         setProducts(mapped);
       } catch (err: any) {
-        setProductsError(err.message ?? "Failed to load products");
+        setProductsError(err.message ?? 'Failed to load products');
       } finally {
         setLoadingProducts(false);
       }
@@ -114,25 +101,25 @@ export const CheckoutView: React.FC = () => {
 
       try {
         const resp = await fetch(`${ORCHESTRATOR_BASE_URL}/catalog/users`, {
-          headers: { Accept: "application/json" }
+          headers: { Accept: 'application/json' },
         });
 
         const data = await resp.json();
 
         if (!resp.ok) {
-          setUsersError(data?.message ?? "Failed to load users");
+          setUsersError(data?.message ?? 'Failed to load users');
           return;
         }
 
         const mapped: UserPart[] = data.map((u: any) => ({
           id: u.id,
           name: u.name,
-          loyaltyTier: u.loyaltyTier
+          loyaltyTier: u.loyaltyTier,
         }));
 
         setUsers(mapped);
       } catch (err: any) {
-        setUsersError(err.message ?? "Failed to load users");
+        setUsersError(err.message ?? 'Failed to load users');
       } finally {
         setLoadingUsers(false);
       }
@@ -167,16 +154,15 @@ export const CheckoutView: React.FC = () => {
               productId: product.id,
               userId: user.id,
               basePrice: String(product.basePrice),
-              loyaltyTier: user.loyaltyTier
+              loyaltyTier: user.loyaltyTier,
             });
 
-            const resp = await fetch(
-              `${PRICING_API_BASE_URL}/pricing/quote?${params.toString()}`,
-              { headers: { Accept: "application/json" } }
-            );
+            const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/quote?${params.toString()}`, {
+              headers: { Accept: 'application/json' },
+            });
             const data = await resp.json();
             if (!resp.ok) {
-              throw new Error(data?.message ?? "Failed to calculate pricing");
+              throw new Error(data?.message ?? 'Failed to calculate pricing');
             }
             return [product.id, data] as const;
           })
@@ -184,7 +170,7 @@ export const CheckoutView: React.FC = () => {
 
         setPricingQuotes(Object.fromEntries(entries));
       } catch (err: any) {
-        setPricingError(err.message ?? "Failed to calculate pricing");
+        setPricingError(err.message ?? 'Failed to calculate pricing');
         setPricingQuotes({});
       } finally {
         setPricingLoading(false);
@@ -195,8 +181,7 @@ export const CheckoutView: React.FC = () => {
   }, [selectedUserId, products, users]);
 
   const formatPrice = (value: number) => `£${value.toFixed(2)}`;
-  const tierStyle = (tier: UserPart["loyaltyTier"]) =>
-    LOYALTY_META[tier] ?? LOYALTY_META.BRONZE;
+  const tierStyle = (tier: UserPart['loyaltyTier']) => LOYALTY_META[tier] ?? LOYALTY_META.BRONZE;
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -229,47 +214,43 @@ export const CheckoutView: React.FC = () => {
             {selectedUserId && (
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   marginBottom: spacing.md,
                   padding: spacing.md,
                   backgroundColor: colors.background.secondary,
-                  borderRadius: "6px"
+                  borderRadius: '6px',
                 }}
               >
                 <div>
                   <div style={{ fontWeight: 600, marginBottom: spacing.xs }}>
                     Selected: {selectedUser?.name}
                   </div>
-                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
+                  <div style={{ fontSize: '0.85rem', color: colors.text.secondary }}>
                     {selectedUser && (
                       <>
                         <span
                           style={{
-                            display: "inline-flex",
-                            alignItems: "center",
+                            display: 'inline-flex',
+                            alignItems: 'center',
                             gap: spacing.xs,
                             color: tierStyle(selectedUser.loyaltyTier).color,
                             backgroundColor: tierStyle(selectedUser.loyaltyTier).bg,
-                            padding: "0.2rem 0.5rem",
-                            borderRadius: "999px",
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '999px',
                             fontWeight: 600,
-                            fontSize: "0.85rem"
+                            fontSize: '0.85rem',
                           }}
                         >
-                          {tierStyle(selectedUser.loyaltyTier).emoji}{" "}
+                          {tierStyle(selectedUser.loyaltyTier).emoji}{' '}
                           {tierStyle(selectedUser.loyaltyTier).label}
                         </span>
                       </>
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedUserId("")}
-                >
+                <Button variant="outline" size="sm" onClick={() => setSelectedUserId('')}>
                   Clear Selection
                 </Button>
               </div>
@@ -277,9 +258,9 @@ export const CheckoutView: React.FC = () => {
 
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-                gap: spacing.md
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                gap: spacing.md,
               }}
             >
               {users.map((u) => {
@@ -288,78 +269,80 @@ export const CheckoutView: React.FC = () => {
                 return (
                   <button
                     key={u.id}
-                    onClick={() =>
-                      setSelectedUserId((prev) => (prev === u.id ? "" : u.id))
-                    }
+                    onClick={() => setSelectedUserId((prev) => (prev === u.id ? '' : u.id))}
                     style={{
-                      textAlign: "left",
+                      textAlign: 'left',
                       border: isActive
                         ? `2px solid ${meta.color}`
-                        : "1px solid " + colors.border.medium,
+                        : '1px solid ' + colors.border.medium,
                       backgroundColor: isActive
-                        ? (theme === "dark" ? "rgba(77,171,247,0.15)" : "rgba(13,110,253,0.06)")
+                        ? theme === 'dark'
+                          ? 'rgba(77,171,247,0.15)'
+                          : 'rgba(13,110,253,0.06)'
                         : colors.background.primary,
-                      borderRadius: "8px",
+                      borderRadius: '8px',
                       padding: spacing.md,
-                      cursor: "pointer",
+                      cursor: 'pointer',
                       boxShadow: isActive
-                        ? (theme === "dark" ? "0 4px 12px rgba(0,0,0,0.4)" : "0 4px 12px rgba(0,0,0,0.1)")
-                        : (theme === "dark" ? "0 2px 4px rgba(0,0,0,0.3)" : "0 2px 4px rgba(0,0,0,0.05)"),
-                      transition: "all 0.15s ease",
-                      fontFamily: "inherit"
+                        ? theme === 'dark'
+                          ? '0 4px 12px rgba(0,0,0,0.4)'
+                          : '0 4px 12px rgba(0,0,0,0.1)'
+                        : theme === 'dark'
+                          ? '0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.05)',
+                      transition: 'all 0.15s ease',
+                      fontFamily: 'inherit',
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.borderColor = meta.color;
-                        e.currentTarget.style.boxShadow = theme === "dark" 
-                          ? "0 4px 8px rgba(0,0,0,0.4)" 
-                          : "0 4px 8px rgba(0,0,0,0.08)";
+                        e.currentTarget.style.boxShadow =
+                          theme === 'dark'
+                            ? '0 4px 8px rgba(0,0,0,0.4)'
+                            : '0 4px 8px rgba(0,0,0,0.08)';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.borderColor = colors.border.medium;
-                        e.currentTarget.style.boxShadow = theme === "dark" 
-                          ? "0 2px 4px rgba(0,0,0,0.3)" 
-                          : "0 2px 4px rgba(0,0,0,0.05)";
+                        e.currentTarget.style.boxShadow =
+                          theme === 'dark'
+                            ? '0 2px 4px rgba(0,0,0,0.3)'
+                            : '0 2px 4px rgba(0,0,0,0.05)';
                       }
                     }}
                   >
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: spacing.sm
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: spacing.sm,
                       }}
                     >
-                      <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
-                        {u.name}
-                      </span>
+                      <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{u.name}</span>
                       <span
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           gap: spacing.xs,
-                          fontSize: "0.8rem",
+                          fontSize: '0.8rem',
                           color: meta.color,
                           backgroundColor: meta.bg,
-                          padding: "0.2rem 0.5rem",
-                          borderRadius: "999px",
-                          fontWeight: 600
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '999px',
+                          fontWeight: 600,
                         }}
                       >
                         {meta.emoji} {meta.label}
                       </span>
                     </div>
-                    <div style={{ color: colors.text.muted, fontSize: "0.85rem" }}>
-                      ID: {u.id}
-                    </div>
+                    <div style={{ color: colors.text.muted, fontSize: '0.85rem' }}>ID: {u.id}</div>
                     <div
                       style={{
                         color: colors.text.secondary,
                         marginTop: spacing.xs,
-                        fontSize: "0.85rem"
+                        fontSize: '0.85rem',
                       }}
                     >
                       {meta.desc}
@@ -384,7 +367,7 @@ export const CheckoutView: React.FC = () => {
         description={
           selectedUserId && selectedUser
             ? `Showing discounted prices for ${selectedUser.name}`
-            : "Showing base prices. Select a customer to see loyalty discounts."
+            : 'Showing base prices. Select a customer to see loyalty discounts.'
         }
       >
         {loadingProducts ? (
@@ -398,10 +381,10 @@ export const CheckoutView: React.FC = () => {
                 style={{
                   padding: spacing.md,
                   backgroundColor: colors.background.secondary,
-                  borderRadius: "6px",
+                  borderRadius: '6px',
                   marginBottom: spacing.md,
-                  textAlign: "center",
-                  color: colors.text.secondary
+                  textAlign: 'center',
+                  color: colors.text.secondary,
                 }}
               >
                 Calculating discounts...
@@ -410,9 +393,9 @@ export const CheckoutView: React.FC = () => {
 
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                gap: spacing.lg
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: spacing.lg,
               }}
             >
               {products.map((product) => {
@@ -427,67 +410,77 @@ export const CheckoutView: React.FC = () => {
                   <div
                     key={product.id}
                     style={{
-                      border: "1px solid " + colors.border.light,
-                      borderRadius: "8px",
-                      overflow: "hidden",
+                      border: '1px solid ' + colors.border.light,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
                       background: colors.background.primary,
-                      boxShadow: theme === "dark" 
-                        ? "0 2px 4px rgba(0,0,0,0.3)" 
-                        : "0 2px 4px rgba(0,0,0,0.05)",
-                      transition: "box-shadow 0.15s ease"
+                      boxShadow:
+                        theme === 'dark'
+                          ? '0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.05)',
+                      transition: 'box-shadow 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = theme === "dark" 
-                        ? "0 4px 12px rgba(0,0,0,0.5)" 
-                        : "0 4px 12px rgba(0,0,0,0.1)";
+                      e.currentTarget.style.boxShadow =
+                        theme === 'dark'
+                          ? '0 4px 12px rgba(0,0,0,0.5)'
+                          : '0 4px 12px rgba(0,0,0,0.1)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = theme === "dark" 
-                        ? "0 2px 4px rgba(0,0,0,0.3)" 
-                        : "0 2px 4px rgba(0,0,0,0.05)";
+                      e.currentTarget.style.boxShadow =
+                        theme === 'dark'
+                          ? '0 2px 4px rgba(0,0,0,0.3)'
+                          : '0 2px 4px rgba(0,0,0,0.05)';
                     }}
                   >
                     <div
                       style={{
-                        height: "160px",
+                        height: '160px',
                         backgroundImage: `url(${PRODUCT_IMAGE})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        backgroundColor: colors.background.tertiary
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundColor: colors.background.tertiary,
                       }}
                     />
                     <div style={{ padding: spacing.md }}>
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: spacing.sm
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: spacing.sm,
                         }}
                       >
-                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600, color: colors.text.primary }}>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: '1.1rem',
+                            fontWeight: 600,
+                            color: colors.text.primary,
+                          }}
+                        >
                           {product.name}
                         </h3>
                         <span
                           style={{
-                            fontSize: "0.75rem",
+                            fontSize: '0.75rem',
                             color: product.stock > 0 ? colors.successMsg.text : colors.error.text,
                             backgroundColor:
                               product.stock > 0 ? colors.successMsg.bg : colors.error.bg,
-                            padding: "0.25rem 0.5rem",
-                            borderRadius: "4px",
-                            fontWeight: 500
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            fontWeight: 500,
                           }}
                         >
-                          {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                          {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                         </span>
                       </div>
 
                       <div
                         style={{
-                          fontSize: "0.85rem",
+                          fontSize: '0.85rem',
                           color: colors.text.muted,
-                          marginBottom: spacing.sm
+                          marginBottom: spacing.sm,
                         }}
                       >
                         <div>ID: {product.id}</div>
@@ -497,25 +490,25 @@ export const CheckoutView: React.FC = () => {
                       <div
                         style={{
                           paddingTop: spacing.sm,
-                          borderTop: "1px solid " + colors.border.light
+                          borderTop: '1px solid ' + colors.border.light,
                         }}
                       >
                         {!selectedUserId || !quote ? (
                           <div>
                             <div
                               style={{
-                                fontSize: "0.85rem",
+                                fontSize: '0.85rem',
                                 color: colors.text.muted,
-                                marginBottom: spacing.xs
+                                marginBottom: spacing.xs,
                               }}
                             >
                               Base Price
                             </div>
                             <div
                               style={{
-                                fontSize: "1.5rem",
+                                fontSize: '1.5rem',
                                 fontWeight: 700,
-                                color: colors.text.primary
+                                color: colors.text.primary,
                               }}
                             >
                               {formatPrice(product.basePrice)}
@@ -525,20 +518,20 @@ export const CheckoutView: React.FC = () => {
                           <div>
                             <div
                               style={{
-                                fontSize: "0.85rem",
+                                fontSize: '0.85rem',
                                 color: colors.text.muted,
-                                marginBottom: spacing.xs
+                                marginBottom: spacing.xs,
                               }}
                             >
-                              {hasDiscount ? "Discounted Price" : "Final Price"}
+                              {hasDiscount ? 'Discounted Price' : 'Final Price'}
                             </div>
                             {hasDiscount && (
                               <div
                                 style={{
-                                  fontSize: "0.9rem",
+                                  fontSize: '0.9rem',
                                   color: colors.text.muted,
-                                  textDecoration: "line-through",
-                                  marginBottom: spacing.xs
+                                  textDecoration: 'line-through',
+                                  marginBottom: spacing.xs,
                                 }}
                               >
                                 {formatPrice(product.basePrice)}
@@ -546,10 +539,10 @@ export const CheckoutView: React.FC = () => {
                             )}
                             <div
                               style={{
-                                fontSize: "1.5rem",
+                                fontSize: '1.5rem',
                                 fontWeight: 700,
                                 color: hasDiscount ? colors.successMsg.text : colors.text.primary,
-                                marginBottom: spacing.xs
+                                marginBottom: spacing.xs,
                               }}
                             >
                               {formatPrice(quote.finalPrice)}
@@ -558,25 +551,25 @@ export const CheckoutView: React.FC = () => {
                               <>
                                 <div
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
                                     gap: spacing.xs,
                                     color: colors.successMsg.text,
                                     backgroundColor: colors.successMsg.bg,
-                                    borderRadius: "999px",
-                                    padding: "0.25rem 0.75rem",
+                                    borderRadius: '999px',
+                                    padding: '0.25rem 0.75rem',
                                     fontWeight: 600,
-                                    fontSize: "0.85rem",
-                                    marginBottom: spacing.xs
+                                    fontSize: '0.85rem',
+                                    marginBottom: spacing.xs,
                                   }}
                                 >
                                   {discountPercent}% OFF
                                 </div>
                                 <div
                                   style={{
-                                    fontSize: "0.8rem",
+                                    fontSize: '0.8rem',
                                     color: colors.text.muted,
-                                    marginTop: spacing.xs
+                                    marginTop: spacing.xs,
                                   }}
                                 >
                                   You save {formatPrice(quote.discount)}

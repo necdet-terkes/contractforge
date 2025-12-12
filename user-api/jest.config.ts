@@ -1,20 +1,17 @@
-import baseConfig from "../jest.base.config";
-import type { Config } from "jest";
+import baseConfig from '../jest.base.config';
+import type { Config } from 'jest';
 
 const config: Config = {
   ...baseConfig,
-  displayName: "user-api",
-  rootDir: ".",
-  testMatch: [
-    "<rootDir>/test/**/*.test.ts",
-    "<rootDir>/src/**/__tests__/**/*.test.ts"
-  ],
+  displayName: 'user-api',
+  rootDir: '.',
+  testMatch: ['<rootDir>/test/**/*.test.ts', '<rootDir>/src/**/__tests__/**/*.test.ts'],
   globals: {
-    "ts-jest": {
-      tsconfig: "<rootDir>/tsconfig.json"
-    }
+    'ts-jest': {
+      tsconfig: '<rootDir>/tsconfig.json',
+    },
   },
-  moduleDirectories: ["node_modules", "<rootDir>/src"]
+  moduleDirectories: ['node_modules', '<rootDir>/src'],
 };
 
 export default config;

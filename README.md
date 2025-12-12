@@ -341,3 +341,4 @@ For questions or issues, please refer to the API documentation or check the Swag
 
 **Note**: This is a POC demonstrating microservices architecture, contract-driven development, and modern UI patterns. It uses in-memory data stores and is not intended for production use.
 
+

@@ -1,8 +1,8 @@
 // Theme toggle button component with dark mode support
 
-import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
-import { getColors, spacing } from "../styles";
+import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
+import { getColors, spacing } from '../styles';
 
 export const ThemeToggle: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -12,19 +12,19 @@ export const ThemeToggle: React.FC = () => {
     <button
       onClick={toggleTheme}
       style={{
-        padding: spacing.md + " " + spacing.lg,
-        borderRadius: "6px",
-        border: "1px solid " + colors.border.medium,
+        padding: spacing.md + ' ' + spacing.lg,
+        borderRadius: '6px',
+        border: '1px solid ' + colors.border.medium,
         backgroundColor: colors.background.primary,
         color: colors.text.primary,
-        cursor: "pointer",
-        fontSize: "0.9rem",
+        cursor: 'pointer',
+        fontSize: '0.9rem',
         fontWeight: 500,
-        transition: "all 0.15s ease",
-        display: "flex",
-        alignItems: "center",
+        transition: 'all 0.15s ease',
+        display: 'flex',
+        alignItems: 'center',
         gap: spacing.sm,
-        fontFamily: "inherit"
+        fontFamily: 'inherit',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = colors.background.tertiary;
@@ -35,9 +35,8 @@ export const ThemeToggle: React.FC = () => {
         e.currentTarget.style.borderColor = colors.border.medium;
       }}
     >
-      <span style={{ fontSize: "1.1rem" }}>{theme === "dark" ? "☀️" : "🌙"}</span>
-      <span>{theme === "dark" ? "Light" : "Dark"}</span>
+      <span style={{ fontSize: '1.1rem' }}>{theme === 'dark' ? '☀️' : '🌙'}</span>
+      <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
     </button>
   );
 };
-

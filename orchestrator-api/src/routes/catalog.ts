@@ -1,9 +1,9 @@
 // orchestrator-api/src/routes/catalog.ts
 
-import { Request, Response, Router } from "express";
-import { fetchAllProducts } from "../inventoryClient";
-import { fetchAllUsers } from "../userClient";
-import { createErrorResponse } from "../../../types/utils/errors";
+import { Request, Response, Router } from 'express';
+import { fetchAllProducts } from '../inventoryClient';
+import { fetchAllUsers } from '../userClient';
+import { createErrorResponse } from '../../../types/utils/errors';
 
 const router = Router();
 
@@ -43,16 +43,16 @@ const router = Router();
  *                 message:
  *                   type: string
  */
-router.get("/catalog/products", async (_req: Request, res: Response) => {
+router.get('/catalog/products', async (_req: Request, res: Response) => {
   try {
     const products = await fetchAllProducts();
     res.json(products);
   } catch (error: any) {
-    console.error("Error while fetching product list:", error.message);
+    console.error('Error while fetching product list:', error.message);
     createErrorResponse(
       res,
-      "INVENTORY_UNAVAILABLE",
-      "Could not retrieve product list from inventory-api",
+      'INVENTORY_UNAVAILABLE',
+      'Could not retrieve product list from inventory-api',
       502
     );
   }
@@ -93,21 +93,19 @@ router.get("/catalog/products", async (_req: Request, res: Response) => {
  *                 message:
  *                   type: string
  */
-router.get("/catalog/users", async (_req: Request, res: Response) => {
+router.get('/catalog/users', async (_req: Request, res: Response) => {
   try {
     const users = await fetchAllUsers();
     res.json(users);
   } catch (error: any) {
-    console.error("Error while fetching user list:", error.message);
+    console.error('Error while fetching user list:', error.message);
     createErrorResponse(
       res,
-      "USER_SERVICE_UNAVAILABLE",
-      "Could not retrieve user list from user-api",
+      'USER_SERVICE_UNAVAILABLE',
+      'Could not retrieve user list from user-api',
       502
     );
   }
 });
 
 export default router;
-
-

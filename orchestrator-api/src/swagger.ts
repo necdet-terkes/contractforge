@@ -17,7 +17,11 @@ const swaggerDefinition = {
 
 export const swaggerOptions: swaggerJsdoc.Options = {
   definition: swaggerDefinition,
-  apis: ["./src/index.ts"]
+  apis: [
+    "./src/index.ts",
+    "./src/routes/catalog.ts",
+    "./src/routes/checkout.ts"
+  ]
 };
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);

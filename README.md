@@ -160,6 +160,7 @@ Standardized tooling is in place across the monorepo.
   - `npm run test:unit` — runs all Jest tests across workspaces
   - `npm run test:ui` — runs Playwright tests (ui-app)
   - `npm run test:all` — runs unit + UI tests together
+- `npm run check` — typecheck + lint + unit tests
 
 - **Per-service Jest** (API services)
   - `npm test --workspace orchestrator-api`
@@ -175,6 +176,15 @@ Standardized tooling is in place across the monorepo.
 Notes:
 - Jest base config lives at `jest.base.config.ts`.
 - Services export their Express `app` for supertest; servers only listen when `NODE_ENV !== "test"`.
+
+### Git hooks (Husky)
+- **pre-commit**: lint-staged (eslint --fix + prettier write) then `npm run test:unit`
+- **pre-push**: `npm run check` (typecheck + lint + unit tests)
+
+### CI
+- GitHub Actions workflow `.github/workflows/ci.yml`
+- Runs on pull_request and push to main
+- Steps: npm ci → typecheck → lint → unit tests → install Playwright chromium → UI tests
 
 ## 📚 API Documentation
 

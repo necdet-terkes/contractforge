@@ -82,12 +82,14 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
     uuid: uuidv4(),
     statusCode: interaction.response.status,
     label: interaction.description,
+    headers: {
+      // Add CORS headers to all responses
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+      ...(interaction.response.headers || {}),
+    },
   };
-
-  // Add headers if present
-  if (interaction.response.headers) {
-    response.headers = interaction.response.headers;
-  }
 
   // Add body if present
   if (interaction.response.body) {
@@ -120,11 +122,14 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
         uuid: uuidv4(),
         statusCode: interaction.response.status,
         label: interaction.description,
+        headers: {
+          // Add CORS headers to all responses
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+          ...(interaction.response.headers || {}),
+        },
       };
-
-      if (interaction.response.headers) {
-        response.headers = interaction.response.headers;
-      }
 
       if (interaction.response.body) {
         response.body = JSON.stringify(interaction.response.body, null, 2);

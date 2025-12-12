@@ -165,8 +165,8 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
     method: interaction.request.method.toLowerCase(), // Mockoon expects lowercase
     endpoint,
     documentation: interaction.description,
-    responseMode: null,
-    streamingMode: null,
+    responseMode: 'null' as any,
+    streamingMode: 'null' as any,
     streamingInterval: 0,
     responses: [response],
   };

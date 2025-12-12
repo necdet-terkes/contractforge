@@ -150,12 +150,12 @@ test.describe('Admin CRUD Operations', () => {
       }
 
       // Verify product appears in list (real API persists state)
-      // TypeScript type narrowing: use early return pattern
+      // TypeScript type narrowing: check first, then use
       if (!createdProduct) {
         throw new Error('Product was not created');
       }
-
-      expect(createdProduct).not.toBeNull();
+      // After the if check, TypeScript knows createdProduct is not null
+      expect(createdProduct).not.toBeNull(); // Redundant but explicit assertion
       expect(createdProduct.name).toBe(product.name);
       expect(createdProduct.stock).toBe(product.stock);
       expect(createdProduct.price).toBe(product.price);
@@ -258,11 +258,11 @@ test.describe('Admin CRUD Operations', () => {
 
       // Verify rule appears in list (real API persists state)
       // TypeScript type narrowing: check first, then use
-      expect(createdRule).not.toBeNull();
       if (!createdRule) {
         throw new Error('Rule was not created');
       }
       // After the if check, TypeScript knows createdRule is not null
+      expect(createdRule).not.toBeNull(); // Redundant but explicit assertion
       expect(createdRule.loyaltyTier).toBe(rule.loyaltyTier);
       expect(createdRule.rate).toBe(rule.rate);
       expect(createdRule.active).toBe(rule.active);

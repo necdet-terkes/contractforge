@@ -33,11 +33,18 @@ export async function fetchAllUsers(): Promise<UserInfo[]> {
   return await client.get<UserInfo[]>('/users');
 }
 
-export async function createUser(user: { id: string; name: string; loyaltyTier: 'BRONZE' | 'SILVER' | 'GOLD' }): Promise<UserInfo> {
+export async function createUser(user: {
+  id: string;
+  name: string;
+  loyaltyTier: 'BRONZE' | 'SILVER' | 'GOLD';
+}): Promise<UserInfo> {
   return await client.post<UserInfo>('/users', user);
 }
 
-export async function updateUser(userId: string, updates: { name?: string; loyaltyTier?: 'BRONZE' | 'SILVER' | 'GOLD' }): Promise<UserInfo> {
+export async function updateUser(
+  userId: string,
+  updates: { name?: string; loyaltyTier?: 'BRONZE' | 'SILVER' | 'GOLD' }
+): Promise<UserInfo> {
   return await client.put<UserInfo>(buildUserPath(userId), updates);
 }
 

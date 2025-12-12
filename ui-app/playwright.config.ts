@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
 
 // Get root directory (parent of ui-app)
-// When running from ui-app, process.cwd() is already ui-app, so go up one level
-const rootDir = path.resolve(__dirname, '../..');
+// __dirname is ui-app directory, so go up one level to get project root
+const rootDir = path.resolve(__dirname, '..');
 
 // Mock mode is enabled by default for tests
 const isMockMode = process.env.MOCK_MODE !== 'false';
@@ -27,14 +27,16 @@ export default defineConfig({
     },
   ],
   webServer: [
-    // Start Mockoon mocks first
-    ...(isMockMode
+    // Start Mockoon mocks first (with generation)
+    // Note: In CI, mocks are already generated and started separately
+    // For local tests, skip mock generation if pacts don't exist (they'll be generated in CI)
+    ...(isMockMode && process.env.CI !== 'true'
       ? [
           {
-            command: 'npm run mocks:start',
+            command: 'bash -c "npm run pacts:pull 2>/dev/null || true && npm run mocks:generate 2>/dev/null || true && npm run mocks:start"',
             url: 'http://localhost:5001',
             timeout: 30_000,
-            reuseExistingServer: process.env.CI !== 'true',
+            reuseExistingServer: true,
             cwd: rootDir,
           },
         ]

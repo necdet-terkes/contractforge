@@ -1,7 +1,12 @@
 import { Verifier } from '@pact-foundation/pact';
 import { app } from '../src/index';
 import * as http from 'http';
-import { __resetProducts, createProduct, deleteProduct, findProductById } from '../src/productRepository';
+import {
+  __resetProducts,
+  createProduct,
+  deleteProduct,
+  findProductById,
+} from '../src/productRepository';
 
 const brokerBaseUrl = process.env.PACT_BROKER_BASE_URL || 'http://localhost:9292';
 const brokerUsername = process.env.PACT_BROKER_USERNAME || 'pact';

@@ -215,7 +215,10 @@ Notes:
   - Run: `npm run pact:consumer --workspace orchestrator-api`
   - Publish: `npm run pact:publish --workspace orchestrator-api`
   - Tests: `orchestrator-api/src/__pact__/*.pact.test.ts`
-  - Covers: GET /products/:id, GET /users/:id, GET /pricing/quote
+  - Covers all CRUD operations:
+    - **inventory-api**: GET /products, GET /products/:id, POST /products, PUT /products/:id, DELETE /products/:id
+    - **user-api**: GET /users, GET /users/:id, POST /users, PUT /users/:id, DELETE /users/:id
+    - **pricing-api**: GET /pricing/rules, GET /pricing/rules/:id, POST /pricing/rules, PUT /pricing/rules/:id, DELETE /pricing/rules/:id, GET /pricing/quote
 
 - **Provider Verification**:
   - Run all: `npm run pact:verify`
@@ -342,9 +345,16 @@ Set `PACT_SOURCE=broker` to force broker download.
 
 1. **Developer updates consumer test** (e.g., adds new field)
 2. **Pact test runs** → generates new pact file
-3. **Run `npm run mocks:generate`** → Mockoon environment updated
-4. **Tests run against updated mocks** → pass/fail based on contract accuracy
-5. **No manual mock editing required!**
+3. **Pact is published to broker** (or saved locally)
+4. **Run `npm run mocks:generate`** (or `npm run dev:mock:all` which auto-generates) → Mockoon environment updated
+5. **Tests run against updated mocks** → pass/fail based on contract accuracy
+6. **No manual mock editing required!**
+
+**Automatic Mock Updates:**
+
+- `dev:mock:all` automatically pulls pacts and generates mocks before starting
+- Playwright tests (when run locally) automatically generate mocks before starting
+- CI workflow generates mocks before running UI tests
 
 #### CI Flow
 
@@ -507,10 +517,14 @@ Services can be configured via environment variables:
 
 Test coverage focuses on pure logic and repositories:
 
-- inventory-api: product repository CRUD + validation/error cases
-- user-api: user repository CRUD + validation/error cases
-- pricing-api: discount rule CRUD, rate validation, pricing calculation rules
-- orchestrator-api: client helpers (path/query/error mapping) + checkout orchestration builder/error mapper
+- **Unit Tests (Jest)**: Repository CRUD operations, validation, and error handling
+  - inventory-api: product repository CRUD + validation/error cases
+  - user-api: user repository CRUD + validation/error cases
+  - pricing-api: discount rule CRUD, rate validation, pricing calculation rules
+  - orchestrator-api: client helpers (path/query/error mapping) + checkout orchestration builder/error mapper
+- **Contract Tests (Pact)**: Consumer-driven contracts for all API interactions (GET, POST, PUT, DELETE)
+- **E2E Tests (Playwright)**: UI tests run against Mockoon mocks generated from Pact contracts
+- **Mock System**: All UI and integration tests use contract-generated mocks, ensuring tests always match contracts
 
 ## 📝 Key Features
 

@@ -32,12 +32,15 @@ export async function createDiscountRule(rule: {
   return await client.post<DiscountRule>('/pricing/rules', rule);
 }
 
-export async function updateDiscountRule(ruleId: string, updates: {
-  loyaltyTier?: 'BRONZE' | 'SILVER' | 'GOLD';
-  rate?: number;
-  description?: string;
-  active?: boolean;
-}): Promise<DiscountRule> {
+export async function updateDiscountRule(
+  ruleId: string,
+  updates: {
+    loyaltyTier?: 'BRONZE' | 'SILVER' | 'GOLD';
+    rate?: number;
+    description?: string;
+    active?: boolean;
+  }
+): Promise<DiscountRule> {
   return await client.put<DiscountRule>(`/pricing/rules/${ruleId}`, updates);
 }
 

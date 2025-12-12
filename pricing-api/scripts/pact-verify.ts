@@ -1,7 +1,12 @@
 import { Verifier } from '@pact-foundation/pact';
 import { app } from '../src/index';
 import * as http from 'http';
-import { __resetDiscountRules, createDiscountRule, deleteDiscountRule, findDiscountRuleById } from '../src/discountRuleRepository';
+import {
+  __resetDiscountRules,
+  createDiscountRule,
+  deleteDiscountRule,
+  findDiscountRuleById,
+} from '../src/discountRuleRepository';
 
 const brokerBaseUrl = process.env.PACT_BROKER_BASE_URL || 'http://localhost:9292';
 const brokerUsername = process.env.PACT_BROKER_USERNAME || 'pact';

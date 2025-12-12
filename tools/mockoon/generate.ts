@@ -99,7 +99,7 @@ function extractPathParams(pathStr: string): { path: string; params: string[] } 
   // Mockoon uses :id format for path parameters (not {id})
   // If path already has :id format, keep it; otherwise convert fixed paths to :id
   const params: string[] = [];
-  
+
   // If path already has :param format, use it as-is
   if (pathStr.includes(':')) {
     const matches = pathStr.matchAll(/:(\w+)/g);
@@ -108,7 +108,7 @@ function extractPathParams(pathStr: string): { path: string; params: string[] } 
     }
     return { path: pathStr, params };
   }
-  
+
   // Otherwise, try to normalize fixed paths to parameterized format
   // This handles cases where Pact has /users/u1 but we need /users/:id
   return { path: pathStr, params };
@@ -125,7 +125,10 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
   const headersArray: Array<{ key: string; value: string }> = [
     { key: 'Access-Control-Allow-Origin', value: '*' },
     { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS' },
-    { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With' },
+    {
+      key: 'Access-Control-Allow-Headers',
+      value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+    },
   ];
 
   // Add headers from interaction
@@ -176,12 +179,12 @@ function normalizePath(path: string): string {
   // Convert paths like /users/u1, /users/u2 to /users/:id (Mockoon uses :id format)
   // Convert paths like /products/p1, /products/p2 to /products/:id
   // Convert paths like /pricing/rules/rule-1 to /pricing/rules/:id
-  
+
   // If path already has :param format, use it as-is
   if (path.includes(':')) {
     return path;
   }
-  
+
   // Match patterns like /users/u1, /products/p1, /pricing/rules/rule-1
   const pathParamPatterns = [
     /^(\/users\/)u\d+$/,
@@ -224,7 +227,10 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
       const headersArray: Array<{ key: string; value: string }> = [
         { key: 'Access-Control-Allow-Origin', value: '*' },
         { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS' },
-        { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With' },
+        {
+          key: 'Access-Control-Allow-Headers',
+          value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+        },
       ];
 
       // Add headers from interaction

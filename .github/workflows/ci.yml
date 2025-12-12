@@ -57,9 +57,29 @@ jobs:
           PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
         continue-on-error: false
 
+      - name: Generate Mockoon mocks from Pact contracts
+        run: npm run pacts:pull && npm run mocks:generate
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+
+      - name: Start Mockoon mocks
+        run: |
+          npm run mocks:start > /tmp/mockoon.log 2>&1 &
+          echo $! > /tmp/mockoon.pid
+        env:
+          MOCK_MODE: 'true'
+
+      - name: Wait for mocks to be ready
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:5001 && curl -f http://localhost:5002 && curl -f http://localhost:5003; do sleep 2; done'
+
       - name: Install Playwright browsers (chromium)
         working-directory: ui-app
         run: npx playwright install --with-deps chromium
 
-      - name: UI tests
+      - name: UI tests (against mocks)
         run: npm run test:ui --workspace ui-app --if-present
+        env:
+          MOCK_MODE: 'true'

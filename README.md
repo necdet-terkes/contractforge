@@ -197,7 +197,7 @@ Notes:
 
 - GitHub Actions workflow `.github/workflows/ci.yml`
 - Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests → install Playwright chromium → UI tests → Pact Broker → consumer pacts → provider verification
+- Steps: npm ci → typecheck → lint → unit tests → Pact Broker → consumer pacts → provider verification → generate mocks → start mocks → UI tests (against mocks)
 
 ### Contract Testing (Pact)
 
@@ -238,6 +238,153 @@ Notes:
   - `PACT_CONSUMER_BRANCH` (default: local, or GIT_BRANCH)
   - `PACT_PROVIDER_VERSION` (default: local-dev, or GIT_COMMIT)
   - `PACT_PROVIDER_BRANCH` (default: local, or GIT_BRANCH)
+
+### Contract-Driven Mocking (Pact → Mockoon)
+
+**This is the core value proposition of ContractForge**: Automatically generate mock APIs from Pact contracts, eliminating manual mock creation and ensuring mocks always match contracts.
+
+#### Why This Matters
+
+In real-world scenarios (e.g., Sainsbury's):
+
+- Real environments often lack usable test data
+- UI, integration, and system tests must rely on mocks
+- Mocks must be contract-accurate
+- **Contracts are the single source of truth**
+
+When contracts change:
+
+1. Pact tests fail
+2. Contracts are updated
+3. Mockoon mocks are regenerated automatically
+4. Tests pass again **without manual mock editing**
+
+#### How It Works
+
+1. **Pact contracts** define expected interactions (consumer tests)
+2. **Generator** (`tools/mockoon/generate.ts`) converts Pact interactions → Mockoon routes
+3. **Mockoon CLI** serves mock APIs from generated environments
+4. **Application** switches to mock URLs when `MOCK_MODE=true`
+
+#### Local Mock Workflow
+
+```bash
+# 1. Pull pacts (from broker or local files)
+npm run pacts:pull
+
+# 2. Generate Mockoon environments from pacts
+npm run mocks:generate
+
+# 3. Start mock APIs
+npm run mocks:start
+
+# Or do all three in one command:
+npm run mocks:dev
+```
+
+**Generated mocks run on fixed ports:**
+
+- `inventory-api` mock: http://localhost:5001
+- `user-api` mock: http://localhost:5002
+- `pricing-api` mock: http://localhost:5003
+
+#### Running the App in Mock Mode
+
+```bash
+# Start app entirely on mocks (recommended)
+npm run dev:mock:all
+```
+
+This automatically:
+
+1. Pulls pacts (from broker or local files)
+2. Generates Mockoon environments from pacts
+3. Starts Mockoon mocks (ports 5001-5003) in background
+4. Starts orchestrator-api with `MOCK_MODE=true` (points to mocks)
+5. Starts UI app with `VITE_MOCK_MODE=true`
+6. **UI displays a banner**: 🧪 Mock Mode Enabled
+
+**Note**: Real APIs (inventory-api, user-api, pricing-api) are NOT started. Only mocks + orchestrator + UI.
+
+Alternative (if mocks already generated):
+
+```bash
+npm run dev:mock
+```
+
+#### Visual Indicator
+
+When running in mock mode, the UI displays a prominent banner at the top of every page:
+
+> 🧪 **Mock Mode Enabled** — APIs served from contract-generated mocks
+
+This makes the POC self-explanatory in demos.
+
+#### Pact Source Options
+
+**Option 1: From Pact Broker (recommended)**
+
+```bash
+PACT_BROKER_BASE_URL=http://localhost:9292 \
+PACT_BROKER_USERNAME=pact \
+PACT_BROKER_PASSWORD=pact \
+npm run pacts:pull
+```
+
+**Option 2: From Local Files (fallback)**
+
+```bash
+# Uses orchestrator-api/pacts/*.json
+npm run pacts:pull
+```
+
+Set `PACT_SOURCE=broker` to force broker download.
+
+#### What Happens When Contracts Change
+
+1. **Developer updates consumer test** (e.g., adds new field)
+2. **Pact test runs** → generates new pact file
+3. **Run `npm run mocks:generate`** → Mockoon environment updated
+4. **Tests run against updated mocks** → pass/fail based on contract accuracy
+5. **No manual mock editing required!**
+
+#### CI Flow
+
+The CI workflow automatically:
+
+1. Runs Pact consumer tests
+2. Publishes pacts to broker
+3. Verifies provider contracts
+4. **Generates Mockoon mocks from pacts**
+5. **Starts mocks in background**
+6. **Runs UI tests against mocks**
+
+This ensures:
+
+- Mocks are always contract-accurate
+- Tests can run without real services
+- Contract changes immediately affect mocks
+
+#### File Structure
+
+```
+tools/mockoon/
+├── pacts/              # Downloaded/copied pact files
+├── generated/          # Generated Mockoon environments (gitignored)
+├── pull-pacts.ts       # Script to pull pacts from broker or local
+└── generate.ts         # Pact → Mockoon generator
+```
+
+**Note**: `generated/` is gitignored. Mocks are regenerated from pacts on-demand.
+
+#### Environment Variables
+
+- `MOCK_MODE` - Enable mock mode (orchestrator-api uses mock ports)
+- `VITE_MOCK_MODE` - Enable mock mode in UI (shows banner)
+- `PACT_BROKER_BASE_URL` - Pact Broker URL for pulling pacts
+- `PACT_BROKER_USERNAME` - Broker authentication
+- `PACT_BROKER_PASSWORD` - Broker authentication
+- `PACT_SOURCE` - `broker` to force broker download, otherwise uses local files
 
 ## 📚 API Documentation
 

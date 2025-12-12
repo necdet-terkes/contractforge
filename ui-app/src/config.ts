@@ -1,14 +1,42 @@
 // src/config.ts
 
+const isMockMode = import.meta.env.VITE_MOCK_MODE === 'true';
+
+// Mock ports (Mockoon)
+const MOCK_PORTS = {
+  orchestrator: 4000, // Orchestrator still runs on 4000, but uses mock upstreams
+  inventory: 5001,
+  user: 5002,
+  pricing: 5003,
+};
+
+// Real API ports
+const REAL_PORTS = {
+  orchestrator: 4000,
+  inventory: 4001,
+  user: 4002,
+  pricing: 4003,
+};
+
+const getApiUrl = (service: keyof typeof MOCK_PORTS, envVar?: string): string => {
+  if (envVar) {
+    return envVar;
+  }
+  const port = isMockMode ? MOCK_PORTS[service] : REAL_PORTS[service];
+  return `http://localhost:${port}`;
+};
+
 export const ORCHESTRATOR_BASE_URL =
-  import.meta.env.VITE_ORCHESTRATOR_BASE_URL || 'http://localhost:4000';
+  import.meta.env.VITE_ORCHESTRATOR_BASE_URL || getApiUrl('orchestrator');
 
 export const INVENTORY_API_BASE_URL =
-  import.meta.env.VITE_INVENTORY_API_URL || 'http://localhost:4001';
+  import.meta.env.VITE_INVENTORY_API_URL || getApiUrl('inventory');
 
-export const USER_API_BASE_URL = import.meta.env.VITE_USER_API_URL || 'http://localhost:4002';
+export const USER_API_BASE_URL = import.meta.env.VITE_USER_API_URL || getApiUrl('user');
 
-export const PRICING_API_BASE_URL = import.meta.env.VITE_PRICING_API_URL || 'http://localhost:4003';
+export const PRICING_API_BASE_URL = import.meta.env.VITE_PRICING_API_URL || getApiUrl('pricing');
+
+export const IS_MOCK_MODE = isMockMode;
 
 // Single placeholder product image
 export const PRODUCT_IMAGE =

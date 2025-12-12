@@ -37,8 +37,8 @@
     "pact:consumer": "npm run pact:consumer:all --workspace orchestrator-api",
     "pact:verify": "npm run pact:verify --workspaces --if-present",
     "pact:all": "npm run pact:broker:up && npm run pact:broker:health && npm run pact:consumer && npm run pact:verify && npm run pact:broker:down",
-    "pacts:pull": "ts-node tools/mockoon/pull-pacts.ts",
-    "mocks:generate": "ts-node tools/mockoon/generate.ts",
+    "pacts:pull": "tsx tools/mockoon/pull-pacts.ts",
+    "mocks:generate": "tsx tools/mockoon/generate.ts",
     "mocks:start": "npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json tools/mockoon/generated/user-api.json tools/mockoon/generated/pricing-api.json",
     "mocks:dev": "npm run pacts:pull && npm run mocks:generate && npm run mocks:start",
     "dev:mock": "npm run dev:mock:all"
@@ -73,6 +73,7 @@
     "prettier": "^3.3.3",
     "supertest": "^6.3.4",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.6.0",
     "uuid": "^13.0.0",
     "wait-on": "^7.1.0"

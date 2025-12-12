@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
 
 // Get root directory (parent of ui-app)
-const rootDir = path.resolve(__dirname || process.cwd(), '../..');
+// Playwright config runs from ui-app directory, so go up two levels
+const rootDir = path.resolve(process.cwd(), '../..');
 
 // Mock mode is enabled by default for tests
 const isMockMode = process.env.MOCK_MODE !== 'false';

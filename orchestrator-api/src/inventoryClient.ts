@@ -33,3 +33,23 @@ export async function fetchProductById(productId: string): Promise<InventoryProd
 export async function fetchAllProducts(): Promise<InventoryProduct[]> {
   return await client.get<InventoryProduct[]>('/products');
 }
+
+export async function createProduct(product: {
+  id: string;
+  name: string;
+  stock: number;
+  price: number;
+}): Promise<InventoryProduct> {
+  return await client.post<InventoryProduct>('/products', product);
+}
+
+export async function updateProduct(
+  productId: string,
+  updates: { name?: string; stock?: number; price?: number }
+): Promise<InventoryProduct> {
+  return await client.put<InventoryProduct>(buildProductPath(productId), updates);
+}
+
+export async function deleteProduct(productId: string): Promise<void> {
+  return await client.delete(buildProductPath(productId));
+}

@@ -5,6 +5,7 @@ import { CheckoutView } from './CheckoutView';
 import { AdminView } from './AdminView';
 import { OverviewView } from './OverviewView';
 import { ThemeToggle } from './components/ThemeToggle';
+import { MockModeBanner } from './components/MockModeBanner';
 import { useTheme } from './contexts/ThemeContext';
 import { spacing, getColors } from './styles';
 
@@ -138,6 +139,7 @@ export const App: React.FC = () => {
           transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
         }}
       >
+        <MockModeBanner />
         {activeTab === 'overview' && <OverviewView onNavigate={(tab) => setActiveTab(tab)} />}
         {activeTab === 'checkout' && <CheckoutView />}
         {activeTab === 'admin' && <AdminView />}

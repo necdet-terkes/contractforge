@@ -12,7 +12,7 @@ import { SectionHeader } from './components/SectionHeader';
 import { useTheme } from './contexts/ThemeContext';
 import { getStyles, spacing, getColors } from './styles';
 
-// Swagger documentation URLs
+// Swagger documentation URLs - always point to real API ports
 const SWAGGER_URLS = {
   orchestrator: 'http://localhost:4000/docs',
   inventory: 'http://localhost:4001/docs',

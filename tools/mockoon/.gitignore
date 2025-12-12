@@ -1,0 +1,5 @@
+# Generated Mockoon environments
+generated/*.json
+
+# Downloaded pact files (optional - can be regenerated)
+# pacts/*.json

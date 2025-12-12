@@ -66,4 +66,51 @@ export class HttpClient {
       );
     }
   }
+
+  async post<T>(path: string, data: any): Promise<T> {
+    try {
+      const response = await axios.post<T>(`${this.baseURL}${path}`, data, {
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      });
+      return response.data;
+    } catch (error: any) {
+      const serviceCode = this.serviceName.toUpperCase().replace(/-/g, '_');
+      throw createApiError(
+        error,
+        `Failed to create in ${this.serviceName}`,
+        `${serviceCode}_API_ERROR`
+      );
+    }
+  }
+
+  async put<T>(path: string, data: any): Promise<T> {
+    try {
+      const response = await axios.put<T>(`${this.baseURL}${path}`, data, {
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      });
+      return response.data;
+    } catch (error: any) {
+      const serviceCode = this.serviceName.toUpperCase().replace(/-/g, '_');
+      throw createApiError(
+        error,
+        `Failed to update in ${this.serviceName}`,
+        `${serviceCode}_API_ERROR`
+      );
+    }
+  }
+
+  async delete(path: string): Promise<void> {
+    try {
+      await axios.delete(`${this.baseURL}${path}`, {
+        headers: { Accept: 'application/json' },
+      });
+    } catch (error: any) {
+      const serviceCode = this.serviceName.toUpperCase().replace(/-/g, '_');
+      throw createApiError(
+        error,
+        `Failed to delete from ${this.serviceName}`,
+        `${serviceCode}_API_ERROR`
+      );
+    }
+  }
 }

@@ -182,6 +182,12 @@ Standardized tooling is in place across the monorepo.
   - `npm test --workspace ui-app`
   - Config: `ui-app/playwright.config.ts`
   - Example: `ui-app/tests/example.spec.ts`
+  - **Note**: When running tests locally with mocks, start mocks separately first:
+    ```bash
+    npm run mocks:dev  # Starts mocks in background
+    npm test --workspace ui-app
+    ```
+    In CI, mocks are automatically started before tests.
 
 Notes:
 
@@ -197,7 +203,7 @@ Notes:
 
 - GitHub Actions workflow `.github/workflows/ci.yml`
 - Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests → install Playwright chromium → UI tests → Pact Broker → consumer pacts → provider verification
+- Steps: npm ci → typecheck → lint → unit tests → Pact Broker → consumer pacts → provider verification → generate mocks → start mocks → UI tests (against mocks)
 
 ### Contract Testing (Pact)
 
@@ -215,7 +221,10 @@ Notes:
   - Run: `npm run pact:consumer --workspace orchestrator-api`
   - Publish: `npm run pact:publish --workspace orchestrator-api`
   - Tests: `orchestrator-api/src/__pact__/*.pact.test.ts`
-  - Covers: GET /products/:id, GET /users/:id, GET /pricing/quote
+  - Covers all CRUD operations:
+    - **inventory-api**: GET /products, GET /products/:id, POST /products, PUT /products/:id, DELETE /products/:id
+    - **user-api**: GET /users, GET /users/:id, POST /users, PUT /users/:id, DELETE /users/:id
+    - **pricing-api**: GET /pricing/rules, GET /pricing/rules/:id, POST /pricing/rules, PUT /pricing/rules/:id, DELETE /pricing/rules/:id, GET /pricing/quote
 
 - **Provider Verification**:
   - Run all: `npm run pact:verify`
@@ -238,6 +247,158 @@ Notes:
   - `PACT_CONSUMER_BRANCH` (default: local, or GIT_BRANCH)
   - `PACT_PROVIDER_VERSION` (default: local-dev, or GIT_COMMIT)
   - `PACT_PROVIDER_BRANCH` (default: local, or GIT_BRANCH)
+
+### Contract-Driven Mocking (Pact → Mockoon)
+
+**This is the core value proposition of ContractForge**: Automatically generate mock APIs from Pact contracts, eliminating manual mock creation and ensuring mocks always match contracts.
+
+#### Why This Matters
+
+In real-world scenarios (e.g., Sainsbury's):
+
+- Real environments often lack usable test data
+- UI, integration, and system tests must rely on mocks
+- Mocks must be contract-accurate
+- **Contracts are the single source of truth**
+
+When contracts change:
+
+1. Pact tests fail
+2. Contracts are updated
+3. Mockoon mocks are regenerated automatically
+4. Tests pass again **without manual mock editing**
+
+#### How It Works
+
+1. **Pact contracts** define expected interactions (consumer tests)
+2. **Generator** (`tools/mockoon/generate.ts`) converts Pact interactions → Mockoon routes
+3. **Mockoon CLI** serves mock APIs from generated environments
+4. **Application** switches to mock URLs when `MOCK_MODE=true`
+
+#### Local Mock Workflow
+
+```bash
+# 1. Pull pacts (from broker or local files)
+npm run pacts:pull
+
+# 2. Generate Mockoon environments from pacts
+npm run mocks:generate
+
+# 3. Start mock APIs
+npm run mocks:start
+
+# Or do all three in one command:
+npm run mocks:dev
+```
+
+**Generated mocks run on fixed ports:**
+
+- `inventory-api` mock: http://localhost:5001
+- `user-api` mock: http://localhost:5002
+- `pricing-api` mock: http://localhost:5003
+
+#### Running the App in Mock Mode
+
+```bash
+# Start app entirely on mocks (recommended)
+npm run dev:mock
+# or
+npm run dev:mock:all
+```
+
+Both commands do the same thing. They automatically:
+
+1. **Pull pacts** (from broker or local files)
+2. **Generate Mockoon environments** from pacts
+3. **Start Mockoon mocks** (ports 5001-5003) in background
+4. **Start orchestrator-api** with `MOCK_MODE=true` (points to mocks)
+5. **Start UI app** with `VITE_MOCK_MODE=true`
+6. **UI displays a banner**: 🧪 Mock Mode Enabled
+
+**Note**: Real APIs (inventory-api, user-api, pricing-api) are NOT started. Only mocks + orchestrator + UI.
+
+The mock generation happens automatically before starting services, so you don't need to run `pacts:pull` or `mocks:generate` separately.
+
+#### Visual Indicator
+
+When running in mock mode, the UI displays a prominent banner at the top of every page:
+
+> 🧪 **Mock Mode Enabled** — APIs served from contract-generated mocks
+
+This makes the POC self-explanatory in demos.
+
+#### Pact Source Options
+
+**Option 1: From Pact Broker (recommended)**
+
+```bash
+PACT_BROKER_BASE_URL=http://localhost:9292 \
+PACT_BROKER_USERNAME=pact \
+PACT_BROKER_PASSWORD=pact \
+npm run pacts:pull
+```
+
+**Option 2: From Local Files (fallback)**
+
+```bash
+# Uses orchestrator-api/pacts/*.json
+npm run pacts:pull
+```
+
+Set `PACT_SOURCE=broker` to force broker download.
+
+#### What Happens When Contracts Change
+
+1. **Developer updates consumer test** (e.g., adds new field)
+2. **Pact test runs** → generates new pact file
+3. **Pact is published to broker** (or saved locally)
+4. **Run `npm run mocks:generate`** (or `npm run dev:mock:all` which auto-generates) → Mockoon environment updated
+5. **Tests run against updated mocks** → pass/fail based on contract accuracy
+6. **No manual mock editing required!**
+
+**Automatic Mock Updates:**
+
+- `dev:mock:all` automatically pulls pacts and generates mocks before starting
+- Playwright tests (when run locally) automatically generate mocks before starting
+- CI workflow generates mocks before running UI tests
+
+#### CI Flow
+
+The CI workflow automatically:
+
+1. Runs Pact consumer tests
+2. Publishes pacts to broker
+3. Verifies provider contracts
+4. **Generates Mockoon mocks from pacts**
+5. **Starts mocks in background**
+6. **Runs UI tests against mocks**
+
+This ensures:
+
+- Mocks are always contract-accurate
+- Tests can run without real services
+- Contract changes immediately affect mocks
+
+#### File Structure
+
+```
+tools/mockoon/
+├── pacts/              # Downloaded/copied pact files
+├── generated/          # Generated Mockoon environments (gitignored)
+├── pull-pacts.ts       # Script to pull pacts from broker or local
+└── generate.ts         # Pact → Mockoon generator
+```
+
+**Note**: `generated/` is gitignored. Mocks are regenerated from pacts on-demand.
+
+#### Environment Variables
+
+- `MOCK_MODE` - Enable mock mode (orchestrator-api uses mock ports)
+- `VITE_MOCK_MODE` - Enable mock mode in UI (shows banner)
+- `PACT_BROKER_BASE_URL` - Pact Broker URL for pulling pacts
+- `PACT_BROKER_USERNAME` - Broker authentication
+- `PACT_BROKER_PASSWORD` - Broker authentication
+- `PACT_SOURCE` - `broker` to force broker download, otherwise uses local files
 
 ## 📚 API Documentation
 
@@ -362,10 +523,14 @@ Services can be configured via environment variables:
 
 Test coverage focuses on pure logic and repositories:
 
-- inventory-api: product repository CRUD + validation/error cases
-- user-api: user repository CRUD + validation/error cases
-- pricing-api: discount rule CRUD, rate validation, pricing calculation rules
-- orchestrator-api: client helpers (path/query/error mapping) + checkout orchestration builder/error mapper
+- **Unit Tests (Jest)**: Repository CRUD operations, validation, and error handling
+  - inventory-api: product repository CRUD + validation/error cases
+  - user-api: user repository CRUD + validation/error cases
+  - pricing-api: discount rule CRUD, rate validation, pricing calculation rules
+  - orchestrator-api: client helpers (path/query/error mapping) + checkout orchestration builder/error mapper
+- **Contract Tests (Pact)**: Consumer-driven contracts for all API interactions (GET, POST, PUT, DELETE)
+- **E2E Tests (Playwright)**: UI tests run against Mockoon mocks generated from Pact contracts
+- **Mock System**: All UI and integration tests use contract-generated mocks, ensuring tests always match contracts
 
 ## 📝 Key Features
 

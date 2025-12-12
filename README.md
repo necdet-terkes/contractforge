@@ -254,7 +254,7 @@ Notes:
 
 #### Why This Matters
 
-In real-world scenarios (e.g., Sainsbury's):
+In real-world scenarios:
 
 - Real environments often lack usable test data
 - UI, integration, and system tests must rely on mocks

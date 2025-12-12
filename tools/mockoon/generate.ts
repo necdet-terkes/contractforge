@@ -74,13 +74,9 @@ function extractPathParams(pathStr: string): { path: string; params: string[] } 
 function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
   const { path: mockoonPath } = extractPathParams(interaction.request.path);
 
-  // Build endpoint with query params if needed
-  let endpoint = mockoonPath;
-  if (interaction.request.query) {
-    // For Mockoon, we'll handle query params in the route matching
-    // For now, we'll add them as part of the endpoint
-    endpoint = `${mockoonPath}?${interaction.request.query}`;
-  }
+  // Mockoon matches routes by path only, query params are handled separately
+  // So we don't include query string in the endpoint path
+  const endpoint = mockoonPath;
 
   const response: MockoonRoute['responses'][0] = {
     uuid: uuidv4(),
@@ -119,11 +115,6 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
     if (routeMap.has(routeKey)) {
       // Add response to existing route
       const existingRoute = routeMap.get(routeKey)!;
-      const { path: mockoonPath } = extractPathParams(interaction.request.path);
-      let endpoint = mockoonPath;
-      if (interaction.request.query) {
-        endpoint = `${mockoonPath}?${interaction.request.query}`;
-      }
 
       const response: MockoonRoute['responses'][0] = {
         uuid: uuidv4(),

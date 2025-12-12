@@ -167,7 +167,8 @@ npm run start:pricing
 Standardized tooling is in place across the monorepo.
 
 - **Root scripts**
-  - `npm run test:unit` — runs all Jest tests across workspaces
+  - `npm run test:unit` — runs all Jest tests (API services only)
+  - `npm run test:coverage` — runs Jest tests with coverage report
   - `npm run test:e2e` — runs Playwright E2E tests (ui-app)
   - `npm run test:all` — runs unit + E2E tests together
 - `npm run check` — typecheck + lint + unit tests

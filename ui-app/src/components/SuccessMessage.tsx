@@ -1,14 +1,14 @@
-// Error message component with consistent styling and dark mode support
+// Success message component with consistent styling and dark mode support
 
 import React from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import { getColors, spacing } from "../styles";
 
-interface ErrorMessageProps {
+interface SuccessMessageProps {
   message: string | null;
 }
 
-export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => {
+export const SuccessMessage: React.FC<SuccessMessageProps> = ({ message }) => {
   const { theme } = useTheme();
   const colors = getColors(theme);
 
@@ -17,9 +17,9 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => {
   return (
     <div
       style={{
-        border: "1px solid " + colors.error.border,
-        backgroundColor: colors.error.bg,
-        color: colors.error.text,
+        border: "1px solid " + colors.successMsg.border,
+        backgroundColor: colors.successMsg.bg,
+        color: colors.successMsg.text,
         padding: spacing.md + " " + spacing.lg,
         borderRadius: "6px",
         marginBottom: spacing.lg,

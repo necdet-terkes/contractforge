@@ -1,10 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '../..');
+// Get root directory (parent of ui-app)
+const rootDir = path.resolve(__dirname || process.cwd(), '../..');
 
 // Mock mode is enabled by default for tests
 const isMockMode = process.env.MOCK_MODE !== 'false';

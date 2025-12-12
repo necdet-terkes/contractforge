@@ -292,25 +292,23 @@ npm run mocks:dev
 
 ```bash
 # Start app entirely on mocks (recommended)
+npm run dev:mock
+# or
 npm run dev:mock:all
 ```
 
-This automatically:
+Both commands do the same thing. They automatically:
 
-1. Pulls pacts (from broker or local files)
-2. Generates Mockoon environments from pacts
-3. Starts Mockoon mocks (ports 5001-5003) in background
-4. Starts orchestrator-api with `MOCK_MODE=true` (points to mocks)
-5. Starts UI app with `VITE_MOCK_MODE=true`
+1. **Pull pacts** (from broker or local files)
+2. **Generate Mockoon environments** from pacts
+3. **Start Mockoon mocks** (ports 5001-5003) in background
+4. **Start orchestrator-api** with `MOCK_MODE=true` (points to mocks)
+5. **Start UI app** with `VITE_MOCK_MODE=true`
 6. **UI displays a banner**: 🧪 Mock Mode Enabled
 
 **Note**: Real APIs (inventory-api, user-api, pricing-api) are NOT started. Only mocks + orchestrator + UI.
 
-Alternative (if mocks already generated):
-
-```bash
-npm run dev:mock
-```
+The mock generation happens automatically before starting services, so you don't need to run `pacts:pull` or `mocks:generate` separately.
 
 #### Visual Indicator
 

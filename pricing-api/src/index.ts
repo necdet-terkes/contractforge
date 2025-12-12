@@ -8,7 +8,7 @@ import { config } from "./config";
 import pricingRouter from "./routes/pricing";
 import rulesRouter from "./routes/rules";
 
-const app = express();
+export const app = express();
 
 app.use(
   cors({
@@ -45,7 +45,9 @@ app.get("/health", (_req: Request, res: Response) => {
 app.use(pricingRouter);
 app.use(rulesRouter);
 
-app.listen(config.port, () => {
-  console.log(`Pricing API listening on port ${config.port}`);
-  console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(config.port, () => {
+    console.log(`Pricing API listening on port ${config.port}`);
+    console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
+  });
+}

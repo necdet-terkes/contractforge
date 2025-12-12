@@ -34,11 +34,17 @@ export function useResourceList<T>({ fetchFn, transform }: UseResourceListOption
     } finally {
       setLoading(false);
     }
-  }, []); // Empty deps - only run once on mount
+  }, []); // Empty deps - load function uses refs, so it doesn't need to change
 
+  // Load on mount
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reload when fetchFn or transform changes (e.g., when switching between mock/real mode)
+  useEffect(() => {
+    load();
+  }, [fetchFn, transform, load]);
 
   return { items, loading, error, reload: load };
 }

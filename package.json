@@ -32,7 +32,7 @@
     "dev:all": "concurrently -n orchestrator,inventory,user,pricing,ui \"npm run dev:orchestrator\" \"npm run dev:inventory\" \"npm run dev:user\" \"npm run dev:pricing\" \"npm run dev:ui\"",
     "pact:broker:up": "docker-compose up -d",
     "pact:broker:down": "docker-compose down",
-    "pact:broker:health": "wait-on http://localhost:9292/health || echo 'Broker not ready'",
+    "pact:broker:health": "wait-on http://localhost:9292/health",
     "pact:consumer": "npm run pact:consumer:all --workspace orchestrator-api",
     "pact:verify": "npm run pact:verify --workspaces --if-present",
     "pact:all": "npm run pact:broker:up && npm run pact:broker:health && npm run pact:consumer && npm run pact:verify && npm run pact:broker:down"

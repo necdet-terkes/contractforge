@@ -402,10 +402,10 @@ Pact Broker can be run with Docker:
 
 ```bash
 # Start Pact Broker
-npm run pact-broker:up
+npm run pact:broker:up
 
 # Stop Pact Broker
-npm run pact-broker:down
+npm run pact:broker:down
 ```
 
 ## 📄 License

@@ -77,6 +77,7 @@ export default defineConfig({
       url: 'http://localhost:5173',
       reuseExistingServer: process.env.CI !== 'true',
       timeout: 120_000,
+      cwd: path.resolve(__dirname), // Run from ui-app directory (npm workspace)
     },
   ],
 });

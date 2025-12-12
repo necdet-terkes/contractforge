@@ -10,10 +10,13 @@ const config: Config = {
     '<rootDir>/src/**/__tests__/**/*.test.ts',
     '<rootDir>/src/**/__pact__/**/*.pact.test.ts',
   ],
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.json',
-    },
+  transform: {
+    '^.+\\.(ts|tsx)$': [
+      'ts-jest',
+      {
+        tsconfig: '<rootDir>/tsconfig.json',
+      },
+    ],
   },
   moduleDirectories: ['node_modules', '<rootDir>/src'],
 };

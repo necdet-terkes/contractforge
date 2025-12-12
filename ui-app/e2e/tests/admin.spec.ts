@@ -70,11 +70,28 @@ test.describe('Admin CRUD Operations', () => {
         loyaltyTier: 'BRONZE',
       });
 
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the user row to appear in the table before attempting update
+      // Retry checking for the user to appear (with timeout)
+      let userVisible = false;
+      for (let i = 0; i < 15; i++) {
+        await page.waitForTimeout(300);
+        userVisible = await adminPage.usersSection.isUserVisible(userId);
+        if (userVisible) break;
+      }
+      expect(userVisible).toBe(true);
+
       // Update user
       await adminPage.usersSection.updateUser(userId, {
         name: 'Updated Name',
         loyaltyTier: 'SILVER',
       });
+
+      // Wait for network request to complete after update
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
 
       // Verify update (real API persists state)
       const updatedUser = await adminPage.usersSection.getUser(userId);
@@ -139,12 +156,28 @@ test.describe('Admin CRUD Operations', () => {
         price: 50,
       });
 
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the product row to appear in the table before attempting update
+      let productVisible = false;
+      for (let i = 0; i < 15; i++) {
+        await page.waitForTimeout(300);
+        productVisible = await adminPage.productsSection.isProductVisible(productId);
+        if (productVisible) break;
+      }
+      expect(productVisible).toBe(true);
+
       // Update product
       await adminPage.productsSection.updateProduct(productId, {
         name: 'Updated Product',
         stock: 20,
         price: 75,
       });
+
+      // Wait for network request to complete after update
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
 
       // Verify update (real API persists state)
       const updatedProduct = await adminPage.productsSection.getProduct(productId);
@@ -213,6 +246,18 @@ test.describe('Admin CRUD Operations', () => {
         active: true,
       });
 
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the rule row to appear in the table before attempting update
+      let ruleVisible = false;
+      for (let i = 0; i < 15; i++) {
+        await page.waitForTimeout(300);
+        ruleVisible = await adminPage.pricingRulesSection.isRuleVisible(ruleId);
+        if (ruleVisible) break;
+      }
+      expect(ruleVisible).toBe(true);
+
       // Update rule - Admin asks for all fields sequentially
       await adminPage.pricingRulesSection.updateRule(ruleId, {
         loyaltyTier: 'BRONZE', // Keep same
@@ -220,6 +265,10 @@ test.describe('Admin CRUD Operations', () => {
         description: 'Updated Rule',
         active: true, // Keep active
       });
+
+      // Wait for network request to complete after update
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
 
       // Verify update (real API persists state)
       const updatedRule = await adminPage.pricingRulesSection.getRule(ruleId);

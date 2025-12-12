@@ -7,6 +7,7 @@ pact-broker-data
 coverage
 test-results
 playwright-report
+*.lcov
 .npm-cache
 pacts
 *.log

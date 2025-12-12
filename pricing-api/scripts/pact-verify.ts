@@ -1,6 +1,7 @@
 import { Verifier } from '@pact-foundation/pact';
 import { app } from '../src/index';
 import * as http from 'http';
+import { __resetDiscountRules, createDiscountRule, deleteDiscountRule, findDiscountRuleById } from '../src/discountRuleRepository';
 
 const brokerBaseUrl = process.env.PACT_BROKER_BASE_URL || 'http://localhost:9292';
 const brokerUsername = process.env.PACT_BROKER_USERNAME || 'pact';
@@ -52,9 +53,64 @@ startServer()
       tags: [providerBranch],
       stateHandlers: {
         'pricing rule exists for tier': async () => {
+          // Ensure GOLD tier rule exists
+          const existing = await findDiscountRuleById('rule-gold-default');
+          if (!existing) {
+            await createDiscountRule({
+              id: 'rule-gold-default',
+              loyaltyTier: 'GOLD',
+              rate: 0.3,
+              description: 'Base discount for GOLD customers',
+              active: true,
+            });
+          }
+          return Promise.resolve();
+        },
+        'discount rule exists': async () => {
+          // Ensure rule-gold-default exists
+          const existing = await findDiscountRuleById('rule-gold-default');
+          if (!existing) {
+            await createDiscountRule({
+              id: 'rule-gold-default',
+              loyaltyTier: 'GOLD',
+              rate: 0.3,
+              description: 'Base discount for GOLD customers',
+              active: true,
+            });
+          }
+          return Promise.resolve();
+        },
+        'discount rule does not exist': async () => {
+          // Ensure rule-bronze-default does not exist (delete if exists)
+          try {
+            await deleteDiscountRule('rule-bronze-default');
+          } catch (e: any) {
+            // Ignore if not found
+            if (e.code !== 'RULE_NOT_FOUND') throw e;
+          }
+          return Promise.resolve();
+        },
+        'discount rules exist': async () => {
+          // Reset to only rule-gold-default and rule-silver-default (exactly 2 rules)
+          __resetDiscountRules([]);
+          await createDiscountRule({
+            id: 'rule-gold-default',
+            loyaltyTier: 'GOLD',
+            rate: 0.3,
+            description: 'Base discount for GOLD customers',
+            active: true,
+          });
+          await createDiscountRule({
+            id: 'rule-silver-default',
+            loyaltyTier: 'SILVER',
+            rate: 0.15,
+            description: 'Base discount for SILVER customers',
+            active: true,
+          });
           return Promise.resolve();
         },
         'invalid pricing request': async () => {
+          // No setup needed for invalid request test
           return Promise.resolve();
         },
       },

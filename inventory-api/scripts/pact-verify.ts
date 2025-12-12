@@ -1,6 +1,7 @@
 import { Verifier } from '@pact-foundation/pact';
 import { app } from '../src/index';
 import * as http from 'http';
+import { __resetProducts, createProduct, deleteProduct, findProductById } from '../src/productRepository';
 
 const brokerBaseUrl = process.env.PACT_BROKER_BASE_URL || 'http://localhost:9292';
 const brokerUsername = process.env.PACT_BROKER_USERNAME || 'pact';
@@ -52,9 +53,34 @@ startServer()
       tags: [providerBranch],
       stateHandlers: {
         'product exists': async () => {
+          // Ensure p1 exists
+          const existing = await findProductById('p1');
+          if (!existing) {
+            await createProduct({ id: 'p1', name: 'Coffee Machine', stock: 3, price: 100 });
+          }
           return Promise.resolve();
         },
         'product does not exist': async () => {
+          // Ensure p3 does not exist (delete if exists)
+          try {
+            await deleteProduct('p3');
+          } catch (e: any) {
+            // Ignore if not found
+            if (e.code !== 'PRODUCT_NOT_FOUND') throw e;
+          }
+          // Also ensure p999 does not exist (for GET /products/p999 test)
+          try {
+            await deleteProduct('p999');
+          } catch (e: any) {
+            if (e.code !== 'PRODUCT_NOT_FOUND') throw e;
+          }
+          return Promise.resolve();
+        },
+        'products exist': async () => {
+          // Reset to only p1 and p2 (exactly 2 products as expected by contract)
+          __resetProducts([]);
+          await createProduct({ id: 'p1', name: 'Coffee Machine', stock: 3, price: 100 });
+          await createProduct({ id: 'p2', name: 'Laptop', stock: 5, price: 800 });
           return Promise.resolve();
         },
       },

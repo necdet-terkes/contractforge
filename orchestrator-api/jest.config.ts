@@ -5,7 +5,11 @@ const config: Config = {
   ...baseConfig,
   displayName: 'orchestrator-api',
   rootDir: '.',
-  testMatch: ['<rootDir>/test/**/*.test.ts', '<rootDir>/src/**/__tests__/**/*.test.ts'],
+  testMatch: [
+    '<rootDir>/test/**/*.test.ts',
+    '<rootDir>/src/**/__tests__/**/*.test.ts',
+    '<rootDir>/src/**/__pact__/**/*.pact.test.ts',
+  ],
   globals: {
     'ts-jest': {
       tsconfig: '<rootDir>/tsconfig.json',

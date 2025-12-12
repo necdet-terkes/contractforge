@@ -22,7 +22,7 @@ export function createApiError(error: any, defaultMessage: string, defaultCode: 
     const e = new Error(message) as ApiError;
 
     if (status === 404) {
-      e.code = defaultCode.replace('_API_ERROR', '_NOT_FOUND');
+      e.code = defaultCode.replace(/_API_ERROR$/, '_NOT_FOUND');
     } else {
       e.code = defaultCode;
     }

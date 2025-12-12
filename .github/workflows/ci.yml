@@ -31,15 +31,8 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Install Playwright browsers (chromium)
-        working-directory: ui-app
-        run: npx playwright install --with-deps chromium
-
-      - name: UI tests
-        run: npm run test:ui --workspace ui-app --if-present
-
       - name: Start Pact Broker
-        run: docker-compose up -d
+        run: docker compose up -d
 
       - name: Wait for Pact Broker
         run: |
@@ -63,3 +56,10 @@ jobs:
           PACT_PROVIDER_VERSION: ${{ github.sha }}
           PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
         continue-on-error: false
+
+      - name: Install Playwright browsers (chromium)
+        working-directory: ui-app
+        run: npx playwright install --with-deps chromium
+
+      - name: UI tests
+        run: npm run test:ui --workspace ui-app --if-present

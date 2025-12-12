@@ -3,3 +3,8 @@ dist
 .pnp.*
 .env
 pact-broker-data
+.DS_Store
+coverage
+test-results
+playwright-report
+.npm-cache

@@ -27,20 +27,10 @@ export default defineConfig({
     },
   ],
   webServer: [
-    // Start Mockoon mocks first (with generation)
-    // Note: In CI, mocks are already generated and started separately
-    // For local tests, skip mock generation if pacts don't exist (they'll be generated in CI)
-    ...(isMockMode && process.env.CI !== 'true'
-      ? [
-          {
-            command: 'bash -c "npm run pacts:pull 2>/dev/null || true && npm run mocks:generate 2>/dev/null || true && npm run mocks:start"',
-            url: 'http://localhost:5001',
-            timeout: 30_000,
-            reuseExistingServer: true,
-            cwd: rootDir,
-          },
-        ]
-      : []),
+    // Note: Mockoon mocks must be started separately before running tests
+    // In CI, mocks are started in a separate step (see .github/workflows/ci.yml)
+    // For local development, run: npm run mocks:dev
+    // Playwright's webServer is not suitable for long-running processes like Mockoon CLI
     // Start UI app
     {
       command: isMockMode

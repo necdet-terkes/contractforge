@@ -182,6 +182,12 @@ Standardized tooling is in place across the monorepo.
   - `npm test --workspace ui-app`
   - Config: `ui-app/playwright.config.ts`
   - Example: `ui-app/tests/example.spec.ts`
+  - **Note**: When running tests locally with mocks, start mocks separately first:
+    ```bash
+    npm run mocks:dev  # Starts mocks in background
+    npm test --workspace ui-app
+    ```
+    In CI, mocks are automatically started before tests.
 
 Notes:
 

@@ -337,6 +337,11 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Required providers that must be generated
+  const requiredProviders = ['inventory-api', 'user-api', 'pricing-api'];
+  const generatedProviders = new Set<string>();
+  const errors: Array<{ file: string; error: string }> = [];
+
   const pactFiles = fs.readdirSync(pactsDir).filter((f) => f.endsWith('.json'));
 
   if (pactFiles.length === 0) {
@@ -354,22 +359,68 @@ async function main(): Promise<void> {
       const pact: PactContract = JSON.parse(pactContent);
 
       if (!pact.provider || !pact.provider.name) {
-        console.warn(`⚠ Skipping ${pactFile}: missing provider name`);
+        const errorMsg = `missing provider name`;
+        console.error(`  ✗ Error: ${errorMsg}`);
+        errors.push({ file: pactFile, error: errorMsg });
         continue;
       }
 
       const provider = pact.provider.name;
+
+      // Check if this is a required provider
+      if (!requiredProviders.includes(provider)) {
+        console.warn(`  ⚠ Skipping ${provider}: not a required provider`);
+        continue;
+      }
+
       const environment = generateEnvironmentForProvider(provider, pact);
 
       const outputFile = path.join(generatedDir, `${provider}.json`);
       fs.writeFileSync(outputFile, JSON.stringify(environment, null, 2));
 
+      generatedProviders.add(provider);
       console.log(`  ✓ Generated: ${outputFile}`);
       console.log(`    Port: ${environment.port}`);
       console.log(`    Routes: ${environment.routes.length}`);
     } catch (error: any) {
-      console.error(`  ✗ Error processing ${pactFile}:`, error.message);
+      const errorMsg = error.message || String(error);
+      console.error(`  ✗ Error processing ${pactFile}: ${errorMsg}`);
+      errors.push({ file: pactFile, error: errorMsg });
     }
+  }
+
+  // Verify all required providers were generated
+  const missingProviders = requiredProviders.filter((p) => !generatedProviders.has(p));
+
+  if (missingProviders.length > 0 || errors.length > 0) {
+    console.error('\n✗ Mockoon environment generation failed!');
+    if (missingProviders.length > 0) {
+      console.error(`\nMissing required providers: ${missingProviders.join(', ')}`);
+      console.error('Expected pact files:');
+      missingProviders.forEach((provider) => {
+        const expectedPact = `orchestrator-api-${provider}.json`;
+        console.error(`  - ${expectedPact}`);
+      });
+    }
+    if (errors.length > 0) {
+      console.error('\nErrors encountered:');
+      errors.forEach(({ file, error }) => {
+        console.error(`  - ${file}: ${error}`);
+      });
+    }
+    console.error('\nRun "npm run pacts:pull" to ensure all pact files are available.');
+    process.exit(1);
+  }
+
+  // Verify all generated files exist
+  const missingFiles = requiredProviders.filter((provider) => {
+    const filePath = path.join(generatedDir, `${provider}.json`);
+    return !fs.existsSync(filePath);
+  });
+
+  if (missingFiles.length > 0) {
+    console.error(`\n✗ Generated files missing: ${missingFiles.join(', ')}`);
+    process.exit(1);
   }
 
   console.log('\n✓ Mockoon environments generated successfully!');

@@ -38,6 +38,7 @@ interface MockoonRoute {
     headers?: Record<string, string>;
     body?: string;
     label?: string;
+    default?: boolean;
   }>;
 }
 
@@ -68,13 +69,22 @@ const pactsDir = path.resolve(process.cwd(), 'tools/mockoon/pacts');
 const generatedDir = path.resolve(process.cwd(), 'tools/mockoon/generated');
 
 function extractPathParams(pathStr: string): { path: string; params: string[] } {
-  // Convert /products/:id to /products/{id} for Mockoon
+  // Mockoon uses :id format for path parameters (not {id})
+  // If path already has :id format, keep it; otherwise convert fixed paths to :id
   const params: string[] = [];
-  const mockoonPath = pathStr.replace(/:(\w+)/g, (_, param) => {
-    params.push(param);
-    return `{${param}}`;
-  });
-  return { path: mockoonPath, params };
+  
+  // If path already has :param format, use it as-is
+  if (pathStr.includes(':')) {
+    const matches = pathStr.matchAll(/:(\w+)/g);
+    for (const match of matches) {
+      params.push(match[1]);
+    }
+    return { path: pathStr, params };
+  }
+  
+  // Otherwise, try to normalize fixed paths to parameterized format
+  // This handles cases where Pact has /users/u1 but we need /users/:id
+  return { path: pathStr, params };
 }
 
 function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
@@ -88,6 +98,7 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
     uuid: uuidv4(),
     statusCode: interaction.response.status,
     label: interaction.description,
+    default: true, // Mark as default response (required for route matching)
     headers: {
       // Add CORS headers to all responses
       'Access-Control-Allow-Origin': '*',
@@ -111,12 +122,14 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
 }
 
 function normalizePath(path: string): string {
-  // Convert paths like /users/u1, /users/u2 to /users/{id}
-  // Convert paths like /products/p1, /products/p2 to /products/{id}
-  // Convert paths like /pricing/rules/rule-1 to /pricing/rules/{id}
+  // Convert paths like /users/u1, /users/u2 to /users/:id (Mockoon uses :id format)
+  // Convert paths like /products/p1, /products/p2 to /products/:id
+  // Convert paths like /pricing/rules/rule-1 to /pricing/rules/:id
   
-  // Pattern: /resource/{id-pattern} where id-pattern is alphanumeric with dashes/underscores
-  // Examples: /users/u1 -> /users/{id}, /products/p123 -> /products/{id}
+  // If path already has :param format, use it as-is
+  if (path.includes(':')) {
+    return path;
+  }
   
   // Match patterns like /users/u1, /products/p1, /pricing/rules/rule-1
   const pathParamPatterns = [
@@ -132,14 +145,13 @@ function normalizePath(path: string): string {
     if (pattern.test(path)) {
       const match = path.match(pattern);
       if (match && match[1]) {
-        return `${match[1]}{id}`;
+        return `${match[1]}:id`; // Mockoon uses :id, not {id}
       }
     }
   }
 
-  // If no pattern matches, try to extract path params using the existing function
-  const { path: normalized } = extractPathParams(path);
-  return normalized;
+  // If no pattern matches, return path as-is
+  return path;
 }
 
 function generateEnvironmentForProvider(provider: string, pact: PactContract): MockoonEnvironment {
@@ -161,6 +173,7 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
         uuid: uuidv4(),
         statusCode: interaction.response.status,
         label: interaction.description,
+        default: existingRoute.responses.length === 0, // First response is default
         headers: {
           // Add CORS headers to all responses
           'Access-Control-Allow-Origin': '*',
@@ -183,7 +196,19 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
     }
   }
 
-  routes.push(...Array.from(routeMap.values()));
+  // Sort routes: more specific routes (with params) before general ones
+  // This ensures /users/:id matches before /users/* if wildcards exist
+  const sortedRoutes = Array.from(routeMap.values()).sort((a, b) => {
+    // Routes with path params come after routes without
+    const aHasParams = a.endpoint.includes(':');
+    const bHasParams = b.endpoint.includes(':');
+    if (aHasParams && !bHasParams) return 1;
+    if (!aHasParams && bHasParams) return -1;
+    // Same specificity, maintain order
+    return 0;
+  });
+
+  routes.push(...sortedRoutes);
 
   return {
     uuid: uuidv4(),

@@ -30,15 +30,31 @@ interface PactContract {
 
 interface MockoonRoute {
   uuid: string;
+  type: string;
   method: string;
   endpoint: string;
+  documentation: string;
+  responseMode: string;
+  streamingMode: string;
+  streamingInterval: number;
   responses: Array<{
     uuid: string;
     statusCode: number;
-    headers?: Record<string, string>;
-    body?: string;
     label?: string;
     default?: boolean;
+    headers: Array<{ key: string; value: string }>;
+    body?: string;
+    bodyType: string;
+    latency: number;
+    filePath: string;
+    databucketID: string;
+    sendFileAsBody: boolean;
+    rules: Array<any>;
+    rulesOperator: string;
+    disableTemplating: boolean;
+    fallbackTo404: boolean;
+    crudKey: string;
+    callbacks: Array<any>;
   }>;
 }
 
@@ -53,9 +69,20 @@ interface MockoonEnvironment {
   name: string;
   port: number;
   hostname: string;
+  endpointPrefix: string;
+  latency: number;
+  rootChildren: Array<any>;
+  folders: Array<any>;
   routes: MockoonRoute[];
   headers?: MockoonHeader[];
   cors: boolean;
+  proxyMode: boolean;
+  proxyHost: string;
+  proxyRemovePrefix: boolean;
+  proxyReqHeaders: Array<any>;
+  proxyResHeaders: Array<any>;
+  data: Array<any>;
+  callbacks: Array<any>;
 }
 
 // Provider to port mapping
@@ -94,18 +121,37 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
   // So we don't include query string in the endpoint path
   const endpoint = mockoonPath;
 
+  // Convert headers object to array format
+  const headersArray: Array<{ key: string; value: string }> = [
+    { key: 'Access-Control-Allow-Origin', value: '*' },
+    { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS' },
+    { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With' },
+  ];
+
+  // Add headers from interaction
+  if (interaction.response.headers) {
+    for (const [key, value] of Object.entries(interaction.response.headers)) {
+      headersArray.push({ key, value });
+    }
+  }
+
   const response: MockoonRoute['responses'][0] = {
     uuid: uuidv4(),
     statusCode: interaction.response.status,
     label: interaction.description,
-    default: true, // Mark as default response (required for route matching)
-    headers: {
-      // Add CORS headers to all responses
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
-      ...(interaction.response.headers || {}),
-    },
+    default: true,
+    headers: headersArray,
+    bodyType: interaction.response.body ? 'INLINE' : 'INLINE',
+    latency: 0,
+    filePath: '',
+    databucketID: '',
+    sendFileAsBody: false,
+    rules: [],
+    rulesOperator: 'OR',
+    disableTemplating: false,
+    fallbackTo404: false,
+    crudKey: 'id',
+    callbacks: [],
   };
 
   // Add body if present
@@ -115,8 +161,13 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
 
   return {
     uuid: uuidv4(),
-    method: interaction.request.method,
+    type: 'http',
+    method: interaction.request.method.toLowerCase(), // Mockoon expects lowercase
     endpoint,
+    documentation: interaction.description,
+    responseMode: null,
+    streamingMode: null,
+    streamingInterval: 0,
     responses: [response],
   };
 }
@@ -169,18 +220,37 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
       // Add response to existing route
       const existingRoute = routeMap.get(routeKey)!;
 
+      // Convert headers object to array format
+      const headersArray: Array<{ key: string; value: string }> = [
+        { key: 'Access-Control-Allow-Origin', value: '*' },
+        { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS' },
+        { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With' },
+      ];
+
+      // Add headers from interaction
+      if (interaction.response.headers) {
+        for (const [key, value] of Object.entries(interaction.response.headers)) {
+          headersArray.push({ key, value });
+        }
+      }
+
       const response: MockoonRoute['responses'][0] = {
         uuid: uuidv4(),
         statusCode: interaction.response.status,
         label: interaction.description,
-        default: existingRoute.responses.length === 0, // First response is default
-        headers: {
-          // Add CORS headers to all responses
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
-          ...(interaction.response.headers || {}),
-        },
+        default: existingRoute.responses.length === 0,
+        headers: headersArray,
+        bodyType: interaction.response.body ? 'INLINE' : 'INLINE',
+        latency: 0,
+        filePath: '',
+        databucketID: '',
+        sendFileAsBody: false,
+        rules: [],
+        rulesOperator: 'OR',
+        disableTemplating: false,
+        fallbackTo404: false,
+        crudKey: 'id',
+        callbacks: [],
       };
 
       if (interaction.response.body) {
@@ -216,6 +286,10 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
     name: `${provider} (Mock)`,
     port: PROVIDER_PORTS[provider] || 5000,
     hostname: '0.0.0.0',
+    endpointPrefix: '',
+    latency: 0,
+    rootChildren: [],
+    folders: [],
     routes,
     headers: [
       {
@@ -232,6 +306,13 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
       },
     ],
     cors: true,
+    proxyMode: false,
+    proxyHost: '',
+    proxyRemovePrefix: false,
+    proxyReqHeaders: [],
+    proxyResHeaders: [],
+    data: [],
+    callbacks: [],
   };
 }
 

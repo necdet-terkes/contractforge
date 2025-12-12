@@ -400,6 +400,188 @@ tools/mockoon/
 - `PACT_BROKER_PASSWORD` - Broker authentication
 - `PACT_SOURCE` - `broker` to force broker download, otherwise uses local files
 
+### Playwright E2E Testing
+
+ContractForge includes comprehensive end-to-end tests using Playwright that run against contract-generated mocks. This ensures UI tests validate real user journeys while remaining deterministic and CI-friendly.
+
+#### Test Structure
+
+Tests are organized using the **Page Object Model (POM)** pattern:
+
+```
+ui-app/e2e/
+├── pages/              # Page Object Models
+│   ├── BasePage.ts
+│   ├── Header.ts
+│   ├── CheckoutPage.ts
+│   ├── AdminPage.ts
+│   ├── AdminUsersSection.ts
+│   ├── AdminProductsSection.ts
+│   └── AdminPricingRulesSection.ts
+├── tests/              # Test specifications
+│   ├── smoke.spec.ts          # App loads, mock mode visible
+│   ├── checkout.spec.ts       # Checkout flow tests
+│   ├── admin.spec.ts          # Admin CRUD operations
+│   └── e2e-pricing.spec.ts    # End-to-end pricing rules
+├── fixtures/           # Test data fixtures
+│   └── testData.ts
+└── utils/              # Custom assertions
+    └── assertions.ts
+```
+
+#### Running E2E Tests Locally
+
+**Prerequisites:**
+
+1. Start mocks and UI in mock mode:
+
+   ```bash
+   npm run mocks:dev
+   # In another terminal:
+   npm run dev:mock:all
+   ```
+
+2. Or let Playwright start the UI automatically (mocks must be running separately):
+   ```bash
+   npm run mocks:dev
+   # Then in another terminal:
+   npm run test:e2e
+   ```
+
+**Available Commands:**
+
+```bash
+# Run all E2E tests (mock mode + real mode)
+npm run test:e2e
+
+# Run only mock mode tests (smoke, checkout, e2e-pricing)
+cd ui-app
+npx playwright test --project=mock-mode
+
+# Run only real mode tests (admin CRUD - requires real APIs)
+# First start real APIs: npm run dev:all
+cd ui-app
+npx playwright test --project=real-mode
+
+# Run with Playwright UI (interactive)
+npm run test:e2e:ui
+
+# Run in headed mode (see browser)
+npm run test:e2e:headed
+```
+
+**Running Real Mode Tests Locally:**
+
+```bash
+# 1. Start real APIs
+npm run dev:all
+
+# 2. In another terminal, run real mode tests
+cd ui-app
+MOCK_MODE=false VITE_MOCK_MODE=false npx playwright test --project=real-mode
+```
+
+**Note**:
+
+- Mock mode tests: Mocks must be running (`npm run mocks:dev`)
+- Real mode tests: Real APIs must be running (`npm run dev:all`)
+- Playwright will start the UI app and orchestrator automatically
+
+#### Test Coverage
+
+**1. Smoke Tests** (`smoke.spec.ts`)
+
+- App loads and displays correctly
+- Mock mode banner is visible when in mock mode
+- Navigation tabs are present and clickable
+
+**2. Checkout Flow** (`checkout.spec.ts`)
+
+- Catalog renders products with base prices
+- Products show stock status correctly
+- Base prices shown when no user selected
+- Selecting a user updates pricing with discounts
+- Selected user info is displayed
+- Clearing user selection resets to base prices
+
+**3. Admin CRUD** (`admin.spec.ts`) - **Runs in REAL mode**
+
+- **Users**: Create, update, delete operations
+- **Products**: Create, update, delete operations
+- **Pricing Rules**: Create, update, delete operations
+- All operations use unique IDs per test run
+- Tests clean up created entities automatically
+- **Note**: These tests require real APIs (not mocks) because Mockoon is static and doesn't persist state changes
+
+**4. End-to-End Pricing** (`e2e-pricing.spec.ts`)
+
+- Creating a pricing rule affects checkout discounts
+- Updating a pricing rule rate changes checkout discounts
+- Verifies full flow from admin to checkout
+
+#### CI Integration
+
+E2E tests run automatically in CI in two phases:
+
+**Phase 1: Mock Mode Tests** (smoke, checkout, e2e-pricing)
+
+1. **Mocks are generated** from Pact contracts
+2. **Mocks are started** in background
+3. **Playwright browsers are installed**
+4. **Mock mode tests run** against mocks
+5. **Mocks are stopped**
+
+**Phase 2: Real Mode Tests** (admin CRUD)
+
+1. **Real APIs are started** (inventory-api, user-api, pricing-api)
+2. **Real mode tests run** against real APIs
+3. **Real APIs are stopped**
+
+**Artifacts are uploaded** on failure (traces, screenshots, reports)
+
+The CI workflow ensures:
+
+- Mock mode tests run with `MOCK_MODE=true` (UI shows mock banner)
+- Real mode tests run with `MOCK_MODE=false` (no mock banner)
+- All tests are deterministic and isolated
+- Test results and traces are available for debugging
+
+#### Troubleshooting
+
+**Tests fail with "connection refused" or "ECONNREFUSED":**
+
+- Ensure mocks are running: `npm run mocks:dev`
+- Check mock ports: 5001 (inventory), 5002 (user), 5003 (pricing)
+- Verify UI is accessible at http://localhost:5173
+
+**Mock mode banner not visible:**
+
+- Ensure `VITE_MOCK_MODE=true` is set
+- Check browser console for errors
+- Verify mocks are responding: `curl http://localhost:5001/products`
+
+**Tests timeout:**
+
+- Increase timeout in `playwright.config.ts` if needed
+- Check network tab for slow API calls
+- Verify mocks are responding quickly
+
+**Dialog prompts in admin tests:**
+
+- Admin uses `window.prompt()` for updates
+- Playwright handles these automatically via dialog handlers
+- If tests fail on updates, check dialog handling in page objects
+
+#### Test Data
+
+Tests use unique IDs per run (timestamp + random) to avoid conflicts:
+
+- User IDs: `u-e2e-{timestamp}-{random}`
+- Product IDs: `p-e2e-{timestamp}-{random}`
+- Rule IDs: `rule-e2e-{timestamp}-{random}`
+
+All created entities are cleaned up after each test.
+
 ## 📚 API Documentation
 
 Each service provides Swagger documentation:

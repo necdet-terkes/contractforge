@@ -84,7 +84,61 @@ jobs:
         working-directory: ui-app
         run: npx playwright install --with-deps chromium
 
-      - name: UI tests (against mocks)
-        run: npm run test:ui --workspace ui-app --if-present
+      - name: Run E2E tests (mock mode - smoke, checkout, e2e-pricing)
+        working-directory: ui-app
+        run: npx playwright test --project=mock-mode
         env:
           MOCK_MODE: 'true'
+          VITE_MOCK_MODE: 'true'
+
+      - name: Stop mocks
+        run: |
+          if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) || true; fi
+          if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) || true; fi
+          if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) || true; fi
+
+      - name: Start real APIs for CRUD tests
+        run: |
+          npm run dev:inventory > /tmp/inventory-api.log 2>&1 &
+          echo $! > /tmp/inventory-api.pid
+          npm run dev:user > /tmp/user-api.log 2>&1 &
+          echo $! > /tmp/user-api.pid
+          npm run dev:pricing > /tmp/pricing-api.log 2>&1 &
+          echo $! > /tmp/pricing-api.pid
+          sleep 3
+
+      - name: Wait for real APIs to be ready
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:4001/products && curl -f http://localhost:4002/users && curl -f http://localhost:4003/pricing/rules; do sleep 2; done'
+
+      - name: Run E2E tests (real mode - admin CRUD)
+        working-directory: ui-app
+        run: npx playwright test --project=real-mode
+        env:
+          MOCK_MODE: 'false'
+          VITE_MOCK_MODE: 'false'
+          # Real APIs are running on ports 4001, 4002, 4003
+          # Orchestrator will use these instead of mock ports
+
+      - name: Stop real APIs
+        if: always()
+        run: |
+          if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) || true; fi
+          if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) || true; fi
+          if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) || true; fi
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ui-app/playwright-report/
+          retention-days: 30
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: ui-app/test-results/
+          retention-days: 7

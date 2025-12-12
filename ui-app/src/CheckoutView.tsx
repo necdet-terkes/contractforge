@@ -250,7 +250,12 @@ export const CheckoutView: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setSelectedUserId('')}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedUserId('')}
+                  data-testid="clear-user-selection"
+                >
                   Clear Selection
                 </Button>
               </div>
@@ -269,6 +274,7 @@ export const CheckoutView: React.FC = () => {
                 return (
                   <button
                     key={u.id}
+                    data-testid={`user-select-${u.id}`}
                     onClick={() => setSelectedUserId((prev) => (prev === u.id ? '' : u.id))}
                     style={{
                       textAlign: 'left',
@@ -409,6 +415,7 @@ export const CheckoutView: React.FC = () => {
                 return (
                   <div
                     key={product.id}
+                    data-testid={`product-card-${product.id}`}
                     style={{
                       border: '1px solid ' + colors.border.light,
                       borderRadius: '8px',

@@ -85,6 +85,7 @@ export const App: React.FC = () => {
           return (
             <button
               key={tab.id}
+              data-testid={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: spacing.md + ' ' + spacing.lg,

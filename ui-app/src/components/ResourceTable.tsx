@@ -84,6 +84,7 @@ export function ResourceTable<T extends { id: string }>({
             return (
               <tr
                 key={item.id}
+                data-testid={`table-row-${item.id}`}
                 style={{
                   backgroundColor: baseBg,
                   borderBottom: '1px solid ' + colors.border.light,

@@ -431,20 +431,23 @@ export const AdminView: React.FC = () => {
         <div>
           {/* USERS */}
           <ResourceSection title="Users" error={usersError || userCrudError || null}>
-            <form onSubmit={handleCreateUser} style={styles.form}>
+            <form onSubmit={handleCreateUser} style={styles.form} data-testid="user-create-form">
               <input
+                data-testid="user-id-input"
                 placeholder="ID (e.g. u4)"
                 value={newUser.id}
                 onChange={(e) => setNewUser((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <input
+                data-testid="user-name-input"
                 placeholder="Name"
                 value={newUser.name}
                 onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))}
                 style={styles.input}
               />
               <select
+                data-testid="user-tier-select"
                 value={newUser.loyaltyTier}
                 onChange={(e) =>
                   setNewUser((prev) => ({
@@ -460,6 +463,7 @@ export const AdminView: React.FC = () => {
               </select>
               <button
                 type="submit"
+                data-testid="user-create-button"
                 disabled={usersLoading}
                 onMouseEnter={(e) => {
                   if (!usersLoading) {
@@ -493,6 +497,7 @@ export const AdminView: React.FC = () => {
                 actions={(user) => (
                   <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
+                      data-testid={`user-edit-${user.id}`}
                       onClick={() => handleUpdateUser(user)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);
@@ -507,6 +512,7 @@ export const AdminView: React.FC = () => {
                       Edit
                     </button>
                     <button
+                      data-testid={`user-delete-${user.id}`}
                       onClick={() => handleDeleteUser(user.id)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);
@@ -529,20 +535,27 @@ export const AdminView: React.FC = () => {
 
           {/* PRODUCTS */}
           <ResourceSection title="Products" error={productsError || productCrudError || null}>
-            <form onSubmit={handleCreateProduct} style={styles.form}>
+            <form
+              onSubmit={handleCreateProduct}
+              style={styles.form}
+              data-testid="product-create-form"
+            >
               <input
+                data-testid="product-id-input"
                 placeholder="ID (e.g. p10)"
                 value={newProduct.id}
                 onChange={(e) => setNewProduct((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <input
+                data-testid="product-name-input"
                 placeholder="Name"
                 value={newProduct.name}
                 onChange={(e) => setNewProduct((prev) => ({ ...prev, name: e.target.value }))}
                 style={styles.input}
               />
               <input
+                data-testid="product-stock-input"
                 type="number"
                 placeholder="Stock"
                 value={newProduct.stock}
@@ -555,6 +568,7 @@ export const AdminView: React.FC = () => {
                 style={styles.input}
               />
               <input
+                data-testid="product-price-input"
                 type="number"
                 placeholder="Price"
                 value={newProduct.price}
@@ -568,6 +582,7 @@ export const AdminView: React.FC = () => {
               />
               <button
                 type="submit"
+                data-testid="product-create-button"
                 disabled={productsLoading}
                 onMouseEnter={(e) => {
                   if (!productsLoading) {
@@ -612,6 +627,7 @@ export const AdminView: React.FC = () => {
                 actions={(product) => (
                   <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
+                      data-testid={`product-edit-${product.id}`}
                       onClick={() => handleUpdateProduct(product)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);
@@ -626,6 +642,7 @@ export const AdminView: React.FC = () => {
                       Edit
                     </button>
                     <button
+                      data-testid={`product-delete-${product.id}`}
                       onClick={() => handleDeleteProduct(product.id)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);
@@ -648,14 +665,16 @@ export const AdminView: React.FC = () => {
 
           {/* PRICING RULES */}
           <ResourceSection title="Pricing Rules" error={rulesError || ruleCrudError || null}>
-            <form onSubmit={handleCreateRule} style={styles.form}>
+            <form onSubmit={handleCreateRule} style={styles.form} data-testid="rule-create-form">
               <input
+                data-testid="rule-id-input"
                 placeholder="Rule ID (e.g. rule-gold-30)"
                 value={newRule.id}
                 onChange={(e) => setNewRule((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <select
+                data-testid="rule-tier-select"
                 value={newRule.loyaltyTier}
                 onChange={(e) =>
                   setNewRule((prev) => ({
@@ -670,6 +689,7 @@ export const AdminView: React.FC = () => {
                 <option value="GOLD">GOLD</option>
               </select>
               <input
+                data-testid="rule-rate-input"
                 type="number"
                 step="0.01"
                 placeholder="Rate (0–1)"
@@ -683,6 +703,7 @@ export const AdminView: React.FC = () => {
                 style={styles.input}
               />
               <input
+                data-testid="rule-description-input"
                 placeholder="Description (optional)"
                 value={newRule.description}
                 onChange={(e) =>
@@ -694,6 +715,7 @@ export const AdminView: React.FC = () => {
                 style={styles.input}
               />
               <label
+                data-testid="rule-active-checkbox-label"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -705,6 +727,7 @@ export const AdminView: React.FC = () => {
                 }}
               >
                 <input
+                  data-testid="rule-active-checkbox"
                   type="checkbox"
                   checked={newRule.active}
                   onChange={(e) => setNewRule((prev) => ({ ...prev, active: e.target.checked }))}
@@ -713,6 +736,7 @@ export const AdminView: React.FC = () => {
               </label>
               <button
                 type="submit"
+                data-testid="rule-create-button"
                 disabled={rulesLoading}
                 onMouseEnter={(e) => {
                   if (!rulesLoading) {
@@ -762,6 +786,7 @@ export const AdminView: React.FC = () => {
                 actions={(rule) => (
                   <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
+                      data-testid={`rule-edit-${rule.id}`}
                       onClick={() => handleUpdateRule(rule)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);
@@ -776,6 +801,7 @@ export const AdminView: React.FC = () => {
                       Edit
                     </button>
                     <button
+                      data-testid={`rule-delete-${rule.id}`}
                       onClick={() => handleDeleteRule(rule.id)}
                       onMouseEnter={(e) => {
                         const colors = getColors(theme);

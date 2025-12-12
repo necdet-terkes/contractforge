@@ -197,7 +197,7 @@ Notes:
 
 - GitHub Actions workflow `.github/workflows/ci.yml`
 - Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests → install Playwright chromium → UI tests → Pact Broker → consumer pacts → provider verification
+- Steps: npm ci → typecheck → lint → unit tests → Pact Broker → consumer pacts → provider verification → install Playwright chromium → UI tests
 
 ### Contract Testing (Pact)
 

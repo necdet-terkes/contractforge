@@ -11,6 +11,12 @@ import {
   PRICING_API_BASE_URL,
   PRODUCT_IMAGE
 } from "./config";
+import { Card } from "./components/Card";
+import { SectionHeader } from "./components/SectionHeader";
+import { ErrorMessage } from "./components/ErrorMessage";
+import { Button } from "./components/Button";
+import { useTheme } from "./contexts/ThemeContext";
+import { spacing, getColors } from "./styles";
 
 const LOYALTY_META: Record<
   "BRONZE" | "SILVER" | "GOLD",
@@ -39,16 +45,10 @@ const LOYALTY_META: Record<
   }
 };
 
-const errorBoxStyle: React.CSSProperties = {
-  border: "1px solid #f5c2c7",
-  backgroundColor: "#f8d7da",
-  color: "#842029",
-  padding: "0.75rem 1rem",
-  borderRadius: "4px",
-  marginBottom: "1rem"
-};
-
 export const CheckoutView: React.FC = () => {
+  const { theme } = useTheme();
+  const colors = getColors(theme);
+  
   // Products
   const [products, setProducts] = useState<ProductPart[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -198,273 +198,402 @@ export const CheckoutView: React.FC = () => {
   const tierStyle = (tier: UserPart["loyaltyTier"]) =>
     LOYALTY_META[tier] ?? LOYALTY_META.BRONZE;
 
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+
   return (
     <>
-      <h1>ContractForge – Checkout Preview</h1>
-      <p style={{ color: "#555", marginBottom: "1.5rem" }}>
-        Browse the catalog with stock and prices; pick a user to instantly see
-        their discounted pricing.
-      </p>
+      <SectionHeader
+        title="Checkout Preview"
+        description="Browse the catalog with stock and prices; pick a user to instantly see their discounted pricing."
+      />
 
       {(productsError || usersError) && (
-        <div style={errorBoxStyle}>
-          {productsError && (
-            <>
-              <strong>Product Error:</strong> {productsError}
-              <br />
-            </>
-          )}
-          {usersError && (
-            <>
-              <strong>User Error:</strong> {usersError}
-            </>
-          )}
+        <div style={{ marginBottom: spacing.lg }}>
+          {productsError && <ErrorMessage message={productsError} />}
+          {usersError && <ErrorMessage message={usersError} />}
         </div>
       )}
 
-      {/* User picker */}
-      <section
-        style={{
-          marginBottom: "1.25rem",
-          padding: "0.75rem 1rem",
-          border: "1px solid #e2e8f0",
-          borderRadius: "8px",
-          background:
-            "linear-gradient(135deg, rgba(236,245,255,0.9), rgba(255,255,255,0.9))",
-          boxShadow: "0 6px 18px rgba(15,23,42,0.08)"
-        }}
+      {/* Customer Selection Section */}
+      <Card
+        title="Customer Selection"
+        description="Choose a user to preview loyalty discounts. No selection shows base prices."
+        style={{ marginBottom: spacing.xl }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            alignItems: "center",
-            flexWrap: "wrap"
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
-              Choose a user to preview loyalty discounts
-            </div>
-            <div style={{ color: "#555", fontSize: "0.9rem" }}>
-              No selection = base prices. Gold/Silver/Bronze tiers show the
-              discounted totals below.
-            </div>
-          </div>
-          {selectedUserId && (
-            <button
-              onClick={() => setSelectedUserId("")}
-              style={{
-                border: "1px solid #d0d7e2",
-                background: "#fff",
-                padding: "0.35rem 0.75rem",
-                borderRadius: "6px",
-                cursor: "pointer"
-              }}
-            >
-              Clear selection
-            </button>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "0.75rem",
-            marginTop: "0.75rem"
-          }}
-        >
-          {loadingUsers ? (
-            <p style={{ margin: 0 }}>Loading users...</p>
-          ) : users.length === 0 ? (
-            <p style={{ margin: 0, color: "#777" }}>No users found.</p>
-          ) : (
-            users.map((u) => {
-              const meta = tierStyle(u.loyaltyTier);
-              const isActive = selectedUserId === u.id;
-              return (
-                <button
-                  key={u.id}
-                  onClick={() =>
-                    setSelectedUserId((prev) => (prev === u.id ? "" : u.id))
-                  }
-                  style={{
-                    textAlign: "left",
-                    border: isActive
-                      ? `2px solid ${meta.color}`
-                      : "1px solid #dbe2ef",
-                    backgroundColor: isActive
-                      ? "rgba(13,110,253,0.06)"
-                      : "#fff",
-                    borderRadius: "10px",
-                    padding: "0.75rem",
-                    cursor: "pointer",
-                    boxShadow: isActive
-                      ? "0 10px 24px rgba(0,0,0,0.08)"
-                      : "0 6px 16px rgba(0,0,0,0.04)",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "0.35rem"
-                    }}
-                  >
-                    <span style={{ fontWeight: 700 }}>{u.name}</span>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.35rem",
-                        fontSize: "0.85rem",
-                        color: meta.color,
-                        backgroundColor: meta.bg,
-                        padding: "0.2rem 0.55rem",
-                        borderRadius: "999px",
-                        fontWeight: 700
-                      }}
-                    >
-                      {meta.emoji} {meta.label}
-                    </span>
-                  </div>
-                  <div style={{ color: "#667085", fontSize: "0.9rem" }}>
-                    ID: {u.id}
-                  </div>
-                  <div style={{ color: "#475467", marginTop: "0.35rem" }}>
-                    {meta.desc}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      {pricingError && <div style={errorBoxStyle}>{pricingError}</div>}
-
-      {/* Product cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "1rem"
-        }}
-      >
-        {products.map((product) => {
-          const quote = pricingQuotes[product.id];
-          const discountPercent =
-            quote && quote.basePrice > 0
-              ? Math.round((quote.discount / quote.basePrice) * 100)
-              : 0;
-          return (
-            <div
-              key={product.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                overflow: "hidden",
-                background: "#fff",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.05)"
-              }}
-            >
+        {loadingUsers ? (
+          <p style={{ margin: 0, color: colors.text.secondary }}>Loading users...</p>
+        ) : users.length === 0 ? (
+          <p style={{ margin: 0, color: colors.text.muted }}>No users found.</p>
+        ) : (
+          <>
+            {selectedUserId && (
               <div
                 style={{
-                  height: "140px",
-                  backgroundImage: `url(${PRODUCT_IMAGE})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center"
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: spacing.md,
+                  padding: spacing.md,
+                  backgroundColor: colors.background.secondary,
+                  borderRadius: "6px"
                 }}
-              />
-              <div style={{ padding: "0.75rem 1rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: "0.4rem"
-                  }}
+              >
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: spacing.xs }}>
+                    Selected: {selectedUser?.name}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
+                    {selectedUser && (
+                      <>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: spacing.xs,
+                            color: tierStyle(selectedUser.loyaltyTier).color,
+                            backgroundColor: tierStyle(selectedUser.loyaltyTier).bg,
+                            padding: "0.2rem 0.5rem",
+                            borderRadius: "999px",
+                            fontWeight: 600,
+                            fontSize: "0.85rem"
+                          }}
+                        >
+                          {tierStyle(selectedUser.loyaltyTier).emoji}{" "}
+                          {tierStyle(selectedUser.loyaltyTier).label}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedUserId("")}
                 >
-                  <h3 style={{ margin: 0 }}>{product.name}</h3>
-                  <span
+                  Clear Selection
+                </Button>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+                gap: spacing.md
+              }}
+            >
+              {users.map((u) => {
+                const meta = tierStyle(u.loyaltyTier);
+                const isActive = selectedUserId === u.id;
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() =>
+                      setSelectedUserId((prev) => (prev === u.id ? "" : u.id))
+                    }
                     style={{
-                      fontSize: "0.75rem",
-                      color: product.stock > 0 ? "#0f5132" : "#842029",
-                      backgroundColor:
-                        product.stock > 0 ? "#d1e7dd" : "#f8d7da",
-                      padding: "0.15rem 0.4rem",
-                      borderRadius: "4px"
+                      textAlign: "left",
+                      border: isActive
+                        ? `2px solid ${meta.color}`
+                        : "1px solid " + colors.border.medium,
+                      backgroundColor: isActive
+                        ? (theme === "dark" ? "rgba(77,171,247,0.15)" : "rgba(13,110,253,0.06)")
+                        : colors.background.primary,
+                      borderRadius: "8px",
+                      padding: spacing.md,
+                      cursor: "pointer",
+                      boxShadow: isActive
+                        ? (theme === "dark" ? "0 4px 12px rgba(0,0,0,0.4)" : "0 4px 12px rgba(0,0,0,0.1)")
+                        : (theme === "dark" ? "0 2px 4px rgba(0,0,0,0.3)" : "0 2px 4px rgba(0,0,0,0.05)"),
+                      transition: "all 0.15s ease",
+                      fontFamily: "inherit"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.borderColor = meta.color;
+                        e.currentTarget.style.boxShadow = theme === "dark" 
+                          ? "0 4px 8px rgba(0,0,0,0.4)" 
+                          : "0 4px 8px rgba(0,0,0,0.08)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.borderColor = colors.border.medium;
+                        e.currentTarget.style.boxShadow = theme === "dark" 
+                          ? "0 2px 4px rgba(0,0,0,0.3)" 
+                          : "0 2px 4px rgba(0,0,0,0.05)";
+                      }
                     }}
                   >
-                    {product.stock > 0 ? "In stock" : "Out of stock"}
-                  </span>
-                </div>
-                <p style={{ margin: "0 0 0.25rem", color: "#666" }}>
-                  ID: {product.id}
-                </p>
-                <p style={{ margin: "0 0 0.5rem", color: "#666" }}>
-                  Stock: {product.stock}
-                </p>
-                {!selectedUserId || !quote ? (
-                  <p style={{ margin: 0, fontWeight: 600 }}>
-                    Price: {formatPrice(product.basePrice)}
-                  </p>
-                ) : (
-                  <div style={{ marginTop: "0.35rem" }}>
                     <div
                       style={{
-                        color: "#888",
-                        textDecoration: "line-through"
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: spacing.sm
                       }}
                     >
-                      {formatPrice(product.basePrice)}
-                    </div>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <span
-                        style={{
-                          fontSize: "1.1rem",
-                          fontWeight: 700,
-                          color: "#0f5132"
-                        }}
-                      >
-                        {formatPrice(quote.finalPrice)}
+                      <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                        {u.name}
                       </span>
                       <span
                         style={{
-                          color: "#0f5132",
-                          backgroundColor: "#d1e7dd",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: spacing.xs,
+                          fontSize: "0.8rem",
+                          color: meta.color,
+                          backgroundColor: meta.bg,
+                          padding: "0.2rem 0.5rem",
                           borderRadius: "999px",
-                          padding: "0.15rem 0.5rem",
                           fontWeight: 600
                         }}
                       >
-                        %{discountPercent} discount
+                        {meta.emoji} {meta.label}
                       </span>
                     </div>
-                    <div style={{ color: "#888", fontSize: "0.85rem" }}>
-                      Saved {formatPrice(quote.discount)} via pricing rules
+                    <div style={{ color: colors.text.muted, fontSize: "0.85rem" }}>
+                      ID: {u.id}
+                    </div>
+                    <div
+                      style={{
+                        color: colors.text.secondary,
+                        marginTop: spacing.xs,
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      {meta.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Card>
+
+      {pricingError && (
+        <div style={{ marginBottom: spacing.lg }}>
+          <ErrorMessage message={pricingError} />
+        </div>
+      )}
+
+      {/* Product Catalog Section */}
+      <Card
+        title="Product Catalog"
+        description={
+          selectedUserId && selectedUser
+            ? `Showing discounted prices for ${selectedUser.name}`
+            : "Showing base prices. Select a customer to see loyalty discounts."
+        }
+      >
+        {loadingProducts ? (
+          <p style={{ margin: 0, color: colors.text.secondary }}>Loading products...</p>
+        ) : products.length === 0 ? (
+          <p style={{ margin: 0, color: colors.text.muted }}>No products found.</p>
+        ) : (
+          <>
+            {pricingLoading && selectedUserId && (
+              <div
+                style={{
+                  padding: spacing.md,
+                  backgroundColor: colors.background.secondary,
+                  borderRadius: "6px",
+                  marginBottom: spacing.md,
+                  textAlign: "center",
+                  color: colors.text.secondary
+                }}
+              >
+                Calculating discounts...
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: spacing.lg
+              }}
+            >
+              {products.map((product) => {
+                const quote = pricingQuotes[product.id];
+                const discountPercent =
+                  quote && quote.basePrice > 0
+                    ? Math.round((quote.discount / quote.basePrice) * 100)
+                    : 0;
+                const hasDiscount = selectedUserId && quote && discountPercent > 0;
+
+                return (
+                  <div
+                    key={product.id}
+                    style={{
+                      border: "1px solid " + colors.border.light,
+                      borderRadius: "8px",
+                      overflow: "hidden",
+                      background: colors.background.primary,
+                      boxShadow: theme === "dark" 
+                        ? "0 2px 4px rgba(0,0,0,0.3)" 
+                        : "0 2px 4px rgba(0,0,0,0.05)",
+                      transition: "box-shadow 0.15s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.boxShadow = theme === "dark" 
+                        ? "0 4px 12px rgba(0,0,0,0.5)" 
+                        : "0 4px 12px rgba(0,0,0,0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = theme === "dark" 
+                        ? "0 2px 4px rgba(0,0,0,0.3)" 
+                        : "0 2px 4px rgba(0,0,0,0.05)";
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "160px",
+                        backgroundImage: `url(${PRODUCT_IMAGE})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundColor: colors.background.tertiary
+                      }}
+                    />
+                    <div style={{ padding: spacing.md }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: spacing.sm
+                        }}
+                      >
+                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600, color: colors.text.primary }}>
+                          {product.name}
+                        </h3>
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            color: product.stock > 0 ? colors.successMsg.text : colors.error.text,
+                            backgroundColor:
+                              product.stock > 0 ? colors.successMsg.bg : colors.error.bg,
+                            padding: "0.25rem 0.5rem",
+                            borderRadius: "4px",
+                            fontWeight: 500
+                          }}
+                        >
+                          {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: colors.text.muted,
+                          marginBottom: spacing.sm
+                        }}
+                      >
+                        <div>ID: {product.id}</div>
+                        <div>Stock: {product.stock} units</div>
+                      </div>
+
+                      <div
+                        style={{
+                          paddingTop: spacing.sm,
+                          borderTop: "1px solid " + colors.border.light
+                        }}
+                      >
+                        {!selectedUserId || !quote ? (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                color: colors.text.muted,
+                                marginBottom: spacing.xs
+                              }}
+                            >
+                              Base Price
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1.5rem",
+                                fontWeight: 700,
+                                color: colors.text.primary
+                              }}
+                            >
+                              {formatPrice(product.basePrice)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                color: colors.text.muted,
+                                marginBottom: spacing.xs
+                              }}
+                            >
+                              {hasDiscount ? "Discounted Price" : "Final Price"}
+                            </div>
+                            {hasDiscount && (
+                              <div
+                                style={{
+                                  fontSize: "0.9rem",
+                                  color: colors.text.muted,
+                                  textDecoration: "line-through",
+                                  marginBottom: spacing.xs
+                                }}
+                              >
+                                {formatPrice(product.basePrice)}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                fontSize: "1.5rem",
+                                fontWeight: 700,
+                                color: hasDiscount ? colors.successMsg.text : colors.text.primary,
+                                marginBottom: spacing.xs
+                              }}
+                            >
+                              {formatPrice(quote.finalPrice)}
+                            </div>
+                            {hasDiscount && (
+                              <>
+                                <div
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: spacing.xs,
+                                    color: colors.successMsg.text,
+                                    backgroundColor: colors.successMsg.bg,
+                                    borderRadius: "999px",
+                                    padding: "0.25rem 0.75rem",
+                                    fontWeight: 600,
+                                    fontSize: "0.85rem",
+                                    marginBottom: spacing.xs
+                                  }}
+                                >
+                                  {discountPercent}% OFF
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "0.8rem",
+                                    color: colors.text.muted,
+                                    marginTop: spacing.xs
+                                  }}
+                                >
+                                  You save {formatPrice(quote.discount)}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
-
-      {products.length === 0 && !loadingProducts && (
-        <p style={{ color: "#777" }}>No products found.</p>
-      )}
-
-      {pricingLoading && selectedUserId && (
-        <p style={{ color: "#555", marginTop: "0.75rem" }}>
-          Calculating discounts...
-        </p>
-      )}
+          </>
+        )}
+      </Card>
     </>
   );
 };

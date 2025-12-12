@@ -1,6 +1,8 @@
-// Reusable table component for resource lists
+// Reusable table component for resource lists with dark mode support
 
 import React from "react";
+import { useTheme } from "../contexts/ThemeContext";
+import { getColors, spacing } from "../styles";
 
 interface Column<T> {
   key: keyof T | string;
@@ -24,9 +26,12 @@ export function ResourceTable<T extends { id: string }>({
   loading,
   emptyMessage = "No items found."
 }: ResourceTableProps<T>) {
+  const { theme } = useTheme();
+  const colors = getColors(theme);
+
   if (loading) {
     return (
-      <div style={{ padding: "1rem", textAlign: "center", color: "#666" }}>
+      <div style={{ padding: spacing.lg, textAlign: "center", color: colors.text.secondary }}>
         Loading...
       </div>
     );
@@ -34,7 +39,7 @@ export function ResourceTable<T extends { id: string }>({
 
   if (items.length === 0) {
     return (
-      <div style={{ padding: "1rem", textAlign: "center", color: "#777" }}>
+      <div style={{ padding: spacing.lg, textAlign: "center", color: colors.text.muted }}>
         {emptyMessage}
       </div>
     );
@@ -52,8 +57,8 @@ export function ResourceTable<T extends { id: string }>({
         <thead>
           <tr
             style={{
-              backgroundColor: "#f8f9fa",
-              borderBottom: "2px solid #dee2e6"
+              backgroundColor: colors.background.secondary,
+              borderBottom: "2px solid " + colors.border.medium
             }}
           >
             {columns.map((col) => (
@@ -61,61 +66,65 @@ export function ResourceTable<T extends { id: string }>({
                 key={String(col.key)}
                 align={col.align || "left"}
                 style={{
-                  padding: "0.75rem",
+                  padding: spacing.md,
                   fontWeight: 600,
-                  color: "#495057",
+                  color: colors.text.primary,
                   textAlign: col.align || "left"
                 }}
               >
                 {col.label}
               </th>
             ))}
-            {actions && <th style={{ padding: "0.75rem", width: "120px" }} />}
+            {actions && <th style={{ padding: spacing.md, width: "120px" }} />}
           </tr>
         </thead>
         <tbody>
-          {items.map((item, idx) => (
-            <tr
-              key={item.id}
-              style={{
-                backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa",
-                borderBottom: "1px solid #dee2e6",
-                transition: "background-color 0.15s ease"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#e9ecef";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  idx % 2 === 0 ? "#fff" : "#f8f9fa";
-              }}
-            >
-              {columns.map((col) => (
-                <td
-                  key={String(col.key)}
-                  align={col.align || "left"}
-                  style={{
-                    padding: "0.75rem",
-                    color: "#212529"
-                  }}
-                >
-                  {col.render
-                    ? col.render(item)
-                    : String(item[col.key as keyof T] ?? "")}
-                </td>
-              ))}
-              {actions && (
-                <td
-                  style={{
-                    padding: "0.75rem",
-                    textAlign: "right"
-                  }}
-                >
-                  {actions(item)}
-                </td>
-              )}
-            </tr>
-          ))}
+          {items.map((item, idx) => {
+            const baseBg = idx % 2 === 0 
+              ? colors.background.primary 
+              : colors.background.secondary;
+            return (
+              <tr
+                key={item.id}
+                style={{
+                  backgroundColor: baseBg,
+                  borderBottom: "1px solid " + colors.border.light,
+                  transition: "background-color 0.15s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = baseBg;
+                }}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={String(col.key)}
+                    align={col.align || "left"}
+                    style={{
+                      padding: spacing.md,
+                      color: colors.text.primary
+                    }}
+                  >
+                    {col.render
+                      ? col.render(item)
+                      : String(item[col.key as keyof T] ?? "")}
+                  </td>
+                ))}
+                {actions && (
+                  <td
+                    style={{
+                      padding: spacing.md,
+                      textAlign: "right"
+                    }}
+                  >
+                    {actions(item)}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

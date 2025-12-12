@@ -1,14 +1,36 @@
-version: "3.8"
+version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pact-broker-db
+    environment:
+      POSTGRES_USER: pact_broker
+      POSTGRES_PASSWORD: pact_broker
+      POSTGRES_DB: pact_broker
+    volumes:
+      - pact-broker-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pact_broker']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   pact-broker:
-    image: pactfoundation/pact-broker
+    image: pactfoundation/pact-broker:latest
     container_name: pact-broker
     ports:
-      - "9292:9292"
+      - '9292:9292'
     environment:
-      PACT_BROKER_DATABASE_ADAPTER: "sqlite"
-      PACT_BROKER_DATABASE_NAME: "pact_broker.sqlite"
-      PACT_BROKER_LOG_LEVEL: "INFO"
+      PACT_BROKER_DATABASE_URL: 'postgres://pact_broker:pact_broker@postgres/pact_broker'
+      PACT_BROKER_LOG_LEVEL: 'INFO'
+      PACT_BROKER_BASIC_AUTH_USERNAME: 'pact'
+      PACT_BROKER_BASIC_AUTH_PASSWORD: 'pact'
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./pact-broker-data:/var/pact_broker
+
+volumes:
+  pact-broker-db-data:

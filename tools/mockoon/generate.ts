@@ -41,6 +41,11 @@ interface MockoonRoute {
   }>;
 }
 
+interface MockoonHeader {
+  key: string;
+  value: string;
+}
+
 interface MockoonEnvironment {
   uuid: string;
   lastMigration: number;
@@ -48,6 +53,7 @@ interface MockoonEnvironment {
   port: number;
   hostname: string;
   routes: MockoonRoute[];
+  headers?: MockoonHeader[];
   cors: boolean;
 }
 
@@ -152,6 +158,20 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
     port: PROVIDER_PORTS[provider] || 5000,
     hostname: '0.0.0.0',
     routes,
+    headers: [
+      {
+        key: 'Access-Control-Allow-Origin',
+        value: '*',
+      },
+      {
+        key: 'Access-Control-Allow-Methods',
+        value: 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+      },
+      {
+        key: 'Access-Control-Allow-Headers',
+        value: 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+      },
+    ],
     cors: true,
   };
 }

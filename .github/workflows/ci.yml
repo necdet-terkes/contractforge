@@ -32,11 +32,9 @@ jobs:
         run: npm run test:unit
 
       - name: Install Playwright browsers (chromium)
-        run: |
-          if [ -f ui-app/package.json ]; then
-            npx playwright install --with-deps chromium
-          fi
+        working-directory: ui-app
+        run: npx playwright install --with-deps chromium
 
       - name: UI tests
-        run: npm run test:ui --if-present
+        run: npm run test:ui --workspace ui-app --if-present
 

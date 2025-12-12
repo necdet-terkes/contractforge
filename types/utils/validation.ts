@@ -17,3 +17,4 @@ export function validateLoyaltyTier(tier: unknown): { valid: boolean; value?: Lo
   
   return { valid: true, value: normalizedTier as LoyaltyTier };
 }
+

@@ -50,3 +50,4 @@ export const ResourceSection: React.FC<ResourceSectionProps> = ({
     </section>
   );
 };
+

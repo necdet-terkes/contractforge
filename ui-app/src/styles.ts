@@ -208,3 +208,4 @@ export const getStyles = (theme: "light" | "dark") => {
 
 // Default export for backward compatibility (light theme)
 export const styles = getStyles("light");
+

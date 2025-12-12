@@ -55,3 +55,4 @@ export function useResourceCRUD<T>({
 
   return { create, update, remove, error, setError };
 }
+

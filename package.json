@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "ContractForge – contract-driven mocks and test POC",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "install:all": "npm install",
     "build": "npm run build -ws",

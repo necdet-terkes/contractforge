@@ -18,7 +18,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Use multiple workers in CI for faster test execution
+  // Mock mode tests can run in parallel (static mocks, no state conflicts)
+  // Real mode tests can also run in parallel (each test uses unique IDs)
+  workers: process.env.CI ? 2 : undefined, // 2 workers in CI, auto-detect locally
   reporter: process.env.CI ? [['github'], ['html']] : [['html'], ['list']],
   use: {
     baseURL: 'http://localhost:5173',
@@ -35,6 +38,8 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
       },
+      // Mock mode tests can run in parallel - static mocks, no state conflicts
+      // Each test uses unique IDs, so no race conditions
     },
     {
       name: 'real-mode',
@@ -47,6 +52,8 @@ export default defineConfig({
       // For local: npm run dev:all (starts all real APIs)
       // Note: webServer cannot be overridden at project level, so we rely on
       // environment variables (MOCK_MODE=false) to control the global webServer behavior
+      // Real mode tests can also run in parallel - each test uses unique IDs (generateUniqueId)
+      // No race conditions since tests don't share data
     },
   ],
   webServer: [

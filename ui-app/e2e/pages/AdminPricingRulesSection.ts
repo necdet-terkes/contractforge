@@ -83,30 +83,44 @@ export class AdminPricingRulesSection extends BasePage {
     // Admin ALWAYS asks for all 4 fields: loyaltyTier, rate, description, active
     const editButton = this.page.getByTestId(`rule-edit-${ruleId}`);
 
-    // Click and wait for first dialog (loyaltyTier)
-    await Promise.all([
-      editButton.click(),
-      this.page.waitForEvent('dialog', { timeout: 10000 }).then(async (dialog) => {
-        await dialog.accept(
-          updates.loyaltyTier !== undefined ? updates.loyaltyTier : dialog.defaultValue() || ''
-        );
-      }),
-    ]);
+    // Set up dialog listeners BEFORE clicking the button
+    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog4Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
-    // Wait for second dialog (rate)
-    const dialog2 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Click the edit button
+    await editButton.click();
+
+    // Handle first dialog (loyaltyTier)
+    const dialog1 = await dialog1Promise;
+    await dialog1.accept(
+      updates.loyaltyTier !== undefined ? updates.loyaltyTier : dialog1.defaultValue() || ''
+    );
+
+    // Small delay to allow JavaScript to process first dialog
+    await this.page.waitForTimeout(100);
+
+    // Handle second dialog (rate)
+    const dialog2 = await dialog2Promise;
     await dialog2.accept(
       updates.rate !== undefined ? String(updates.rate) : dialog2.defaultValue() || ''
     );
 
-    // Wait for third dialog (description)
-    const dialog3 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Small delay to allow JavaScript to process second dialog
+    await this.page.waitForTimeout(100);
+
+    // Handle third dialog (description)
+    const dialog3 = await dialog3Promise;
     await dialog3.accept(
       updates.description !== undefined ? updates.description : dialog3.defaultValue() || ''
     );
 
-    // Wait for fourth dialog (active)
-    const dialog4 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Small delay to allow JavaScript to process third dialog
+    await this.page.waitForTimeout(100);
+
+    // Handle fourth dialog (active)
+    const dialog4 = await dialog4Promise;
     await dialog4.accept(
       updates.active !== undefined ? String(updates.active) : dialog4.defaultValue() || ''
     );

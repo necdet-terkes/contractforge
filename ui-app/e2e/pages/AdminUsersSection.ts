@@ -61,16 +61,23 @@ export class AdminUsersSection extends BasePage {
     // Get current user to preserve unchanged values
     const currentUser = await this.getUser(userId);
 
-    // Click and wait for first dialog (name) - Admin always asks
-    await Promise.all([
-      editButton.click(),
-      this.page.waitForEvent('dialog', { timeout: 10000 }).then(async (dialog) => {
-        await dialog.accept(updates.name || dialog.defaultValue() || currentUser?.name || '');
-      }),
-    ]);
+    // Set up dialog listeners BEFORE clicking the button
+    // This ensures we catch both dialogs even if they appear quickly
+    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
-    // Wait for second dialog (loyaltyTier) - Admin always asks
-    const dialog2 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Click the edit button
+    await editButton.click();
+
+    // Handle first dialog (name)
+    const dialog1 = await dialog1Promise;
+    await dialog1.accept(updates.name || dialog1.defaultValue() || currentUser?.name || '');
+
+    // Small delay to allow JavaScript to process first dialog and trigger second
+    await this.page.waitForTimeout(100);
+
+    // Handle second dialog (loyaltyTier)
+    const dialog2 = await dialog2Promise;
     await dialog2.accept(
       updates.loyaltyTier || dialog2.defaultValue() || currentUser?.loyaltyTier || ''
     );

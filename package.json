@@ -39,7 +39,7 @@
     "pact:all": "npm run pact:broker:up && npm run pact:broker:health && npm run pact:consumer && npm run pact:verify && npm run pact:broker:down",
     "pacts:pull": "tsx tools/mockoon/pull-pacts.ts",
     "mocks:generate": "tsx tools/mockoon/generate.ts",
-    "mocks:start": "npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json tools/mockoon/generated/user-api.json tools/mockoon/generated/pricing-api.json",
+    "mocks:start": "concurrently -n inventory,user,pricing \"npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001\" \"npx @mockoon/cli start --data tools/mockoon/generated/user-api.json --port 5002\" \"npx @mockoon/cli start --data tools/mockoon/generated/pricing-api.json --port 5003\"",
     "mocks:dev": "npm run pacts:pull && npm run mocks:generate && npm run mocks:start",
     "dev:mock": "npm run dev:mock:all"
   },

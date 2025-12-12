@@ -66,14 +66,19 @@ jobs:
 
       - name: Start Mockoon mocks
         run: |
-          npm run mocks:start > /tmp/mockoon.log 2>&1 &
-          echo $! > /tmp/mockoon.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001 > /tmp/mockoon-inventory.log 2>&1 &
+          echo $! > /tmp/mockoon-inventory.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/user-api.json --port 5002 > /tmp/mockoon-user.log 2>&1 &
+          echo $! > /tmp/mockoon-user.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/pricing-api.json --port 5003 > /tmp/mockoon-pricing.log 2>&1 &
+          echo $! > /tmp/mockoon-pricing.pid
+          sleep 3
         env:
           MOCK_MODE: 'true'
 
       - name: Wait for mocks to be ready
         run: |
-          timeout 30 bash -c 'until curl -f http://localhost:5001 && curl -f http://localhost:5002 && curl -f http://localhost:5003; do sleep 2; done'
+          timeout 30 bash -c 'until curl -f http://localhost:5001/products && curl -f http://localhost:5002/users && curl -f http://localhost:5003/pricing/rules; do sleep 2; done'
 
       - name: Install Playwright browsers (chromium)
         working-directory: ui-app

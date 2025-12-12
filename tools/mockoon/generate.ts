@@ -110,15 +110,48 @@ function convertInteractionToRoute(interaction: PactInteraction): MockoonRoute {
   };
 }
 
+function normalizePath(path: string): string {
+  // Convert paths like /users/u1, /users/u2 to /users/{id}
+  // Convert paths like /products/p1, /products/p2 to /products/{id}
+  // Convert paths like /pricing/rules/rule-1 to /pricing/rules/{id}
+  
+  // Pattern: /resource/{id-pattern} where id-pattern is alphanumeric with dashes/underscores
+  // Examples: /users/u1 -> /users/{id}, /products/p123 -> /products/{id}
+  
+  // Match patterns like /users/u1, /products/p1, /pricing/rules/rule-1
+  const pathParamPatterns = [
+    /^(\/users\/)u\d+$/,
+    /^(\/products\/)p\d+$/,
+    /^(\/pricing\/rules\/)rule-[\w-]+$/,
+    /^(\/users\/)[\w-]+$/,
+    /^(\/products\/)[\w-]+$/,
+    /^(\/pricing\/rules\/)[\w-]+$/,
+  ];
+
+  for (const pattern of pathParamPatterns) {
+    if (pattern.test(path)) {
+      const match = path.match(pattern);
+      if (match && match[1]) {
+        return `${match[1]}{id}`;
+      }
+    }
+  }
+
+  // If no pattern matches, try to extract path params using the existing function
+  const { path: normalized } = extractPathParams(path);
+  return normalized;
+}
+
 function generateEnvironmentForProvider(provider: string, pact: PactContract): MockoonEnvironment {
   const routes: MockoonRoute[] = [];
 
-  // Group interactions by method + path to combine multiple responses
+  // Group interactions by method + normalized path to combine multiple responses
   const routeMap = new Map<string, MockoonRoute>();
 
   for (const interaction of pact.interactions) {
-    const { path: mockoonPath } = extractPathParams(interaction.request.path);
-    const routeKey = `${interaction.request.method}:${mockoonPath}`;
+    // Normalize path to handle parameterized routes
+    const normalizedPath = normalizePath(interaction.request.path);
+    const routeKey = `${interaction.request.method}:${normalizedPath}`;
 
     if (routeMap.has(routeKey)) {
       // Add response to existing route
@@ -143,8 +176,9 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
 
       existingRoute.responses.push(response);
     } else {
-      // Create new route
+      // Create new route with normalized path
       const route = convertInteractionToRoute(interaction);
+      route.endpoint = normalizedPath; // Override with normalized path
       routeMap.set(routeKey, route);
     }
   }

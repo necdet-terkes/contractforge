@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "npm run test:ui",
-    "test:ui": "playwright test",
+    "test:ui": "npx playwright install --with-deps chromium && playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

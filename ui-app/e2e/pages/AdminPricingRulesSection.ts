@@ -89,11 +89,14 @@ export class AdminPricingRulesSection extends BasePage {
     const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog4Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
-    // Click the edit button
-    await editButton.click();
-
-    // Handle first dialog (loyaltyTier)
-    const dialog1 = await dialog1Promise;
+    // Click the edit button and wait for first dialog simultaneously
+    // Use noWaitAfter to prevent click timeout when dialog opens immediately
+    const [dialog1] = await Promise.all([
+      dialog1Promise,
+      editButton.click({ noWaitAfter: true }).catch(() => {
+        // Click may fail if dialog opens immediately, but dialog promise will resolve
+      }),
+    ]);
     await dialog1.accept(
       updates.loyaltyTier !== undefined ? updates.loyaltyTier : dialog1.defaultValue() || ''
     );

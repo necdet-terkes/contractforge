@@ -4,6 +4,10 @@ import { DiscountRule, initialDiscountRules, LoyaltyTier } from './discountRules
 
 let rules: DiscountRule[] = [...initialDiscountRules];
 
+export function __resetDiscountRules(seed: DiscountRule[] = initialDiscountRules) {
+  rules = [...seed];
+}
+
 export async function listDiscountRules(): Promise<DiscountRule[]> {
   return rules;
 }

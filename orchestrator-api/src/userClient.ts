@@ -12,9 +12,13 @@ const client = new HttpClient({
   serviceName: 'user-api',
 });
 
+export function buildUserPath(userId: string) {
+  return `/users/${userId}`;
+}
+
 export async function fetchUserById(userId: string): Promise<UserInfo> {
   try {
-    return await client.get<UserInfo>(`/users/${userId}`);
+    return await client.get<UserInfo>(buildUserPath(userId));
   } catch (error: any) {
     if (error.code === 'USER_API_NOT_FOUND') {
       const e = new Error(error.message || `User with id '${userId}' was not found`);

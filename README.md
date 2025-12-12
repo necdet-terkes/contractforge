@@ -281,11 +281,31 @@ Services can be configured via environment variables:
 
 ## 🧪 Testing
 
-Currently, tests are placeholders. To add tests:
+- **Run all unit tests (Jest across services + Playwright UI):**
+  ```bash
+  npm run test:unit
+  ```
+- **Per workspace unit tests (Jest):**
+  ```bash
+  npm test --workspace orchestrator-api
+  npm test --workspace inventory-api
+  npm test --workspace user-api
+  npm test --workspace pricing-api
+  ```
+- **UI Playwright tests (installs chromium automatically):**
+  ```bash
+  npm test --workspace ui-app
+  ```
+- **Full check (typecheck + lint + unit):**
+  ```bash
+  npm run check
+  ```
 
-```bash
-npm test
-```
+Test coverage focuses on pure logic and repositories:
+- inventory-api: product repository CRUD + validation/error cases
+- user-api: user repository CRUD + validation/error cases
+- pricing-api: discount rule CRUD, rate validation, pricing calculation rules
+- orchestrator-api: client helpers (path/query/error mapping) + checkout orchestration builder/error mapper
 
 ## 📝 Key Features
 

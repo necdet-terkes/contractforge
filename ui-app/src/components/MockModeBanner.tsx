@@ -13,6 +13,7 @@ export const MockModeBanner: React.FC = () => {
 
   return (
     <div
+      data-testid="mock-mode-banner"
       style={{
         backgroundColor: theme === 'dark' ? '#2d5016' : '#d4edda',
         border: `1px solid ${theme === 'dark' ? '#4a7c2a' : '#c3e6cb'}`,

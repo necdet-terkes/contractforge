@@ -1,21 +1,18 @@
 // Hook for managing resource list state and loading
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from 'react';
 
 export interface UseResourceListOptions<T> {
   fetchFn: () => Promise<T[]>;
   transform?: (data: any[]) => T[];
 }
 
-export function useResourceList<T>({
-  fetchFn,
-  transform
-}: UseResourceListOptions<T>) {
+export function useResourceList<T>({ fetchFn, transform }: UseResourceListOptions<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -23,16 +20,15 @@ export function useResourceList<T>({
       const transformed = transform ? transform(data) : data;
       setItems(transformed);
     } catch (err: any) {
-      setError(err.message ?? "Failed to load");
+      setError(err.message ?? 'Failed to load');
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchFn, transform]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   return { items, loading, error, reload: load };
 }
-

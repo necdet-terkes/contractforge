@@ -1,10 +1,10 @@
 // pricing-api/src/routes/pricing.ts
 
-import { Request, Response, Router } from "express";
-import { calculatePricing } from "../pricing";
-import { validateLoyaltyTier } from "../../../types/utils/validation";
-import { validateBasePrice } from "../utils/validation";
-import { createErrorResponse } from "../../../types/utils/errors";
+import { Request, Response, Router } from 'express';
+import { calculatePricing } from '../pricing';
+import { validateLoyaltyTier } from '../../../types/utils/validation';
+import { validateBasePrice } from '../utils/validation';
+import { createErrorResponse } from '../../../types/utils/errors';
 
 const router = Router();
 
@@ -74,14 +74,14 @@ const router = Router();
  *                 message:
  *                   type: string
  */
-router.get("/pricing/quote", async (req: Request, res: Response) => {
+router.get('/pricing/quote', async (req: Request, res: Response) => {
   const { productId, userId, basePrice, loyaltyTier } = req.query;
 
   if (!productId || !userId || !basePrice || !loyaltyTier) {
     createErrorResponse(
       res,
-      "INVALID_REQUEST",
-      "productId, userId, basePrice and loyaltyTier query parameters are required",
+      'INVALID_REQUEST',
+      'productId, userId, basePrice and loyaltyTier query parameters are required',
       400
     );
     return;
@@ -100,12 +100,7 @@ router.get("/pricing/quote", async (req: Request, res: Response) => {
 
   const tierValidation = validateLoyaltyTier(loyaltyTier);
   if (!tierValidation.valid) {
-    createErrorResponse(
-      res,
-      tierValidation.error!.code,
-      tierValidation.error!.message,
-      400
-    );
+    createErrorResponse(res, tierValidation.error!.code, tierValidation.error!.message, 400);
     return;
   }
 
@@ -119,16 +114,14 @@ router.get("/pricing/quote", async (req: Request, res: Response) => {
 
     res.json(quote);
   } catch (error: any) {
-    console.error("Error while calculating pricing:", error);
+    console.error('Error while calculating pricing:', error);
     createErrorResponse(
       res,
-      "INTERNAL_ERROR",
-      "Unexpected error while calculating pricing quote",
+      'INTERNAL_ERROR',
+      'Unexpected error while calculating pricing quote',
       500
     );
   }
 });
 
 export default router;
-
-

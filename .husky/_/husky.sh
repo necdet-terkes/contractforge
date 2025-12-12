@@ -38,3 +38,4 @@ fi
 if husky_skip_if_chain_split; then
   npm --silent run husky || exit $?
 fi
+

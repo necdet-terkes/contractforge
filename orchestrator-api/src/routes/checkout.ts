@@ -1,10 +1,10 @@
 // orchestrator-api/src/routes/checkout.ts
 
-import { Request, Response, Router } from "express";
-import { fetchProductById } from "../inventoryClient";
-import { fetchUserById } from "../userClient";
-import { fetchPricingQuote } from "../pricingClient";
-import { createErrorResponse } from "../../../types/utils/errors";
+import { Request, Response, Router } from 'express';
+import { fetchProductById } from '../inventoryClient';
+import { fetchUserById } from '../userClient';
+import { fetchPricingQuote } from '../pricingClient';
+import { createErrorResponse } from '../../../types/utils/errors';
 
 const router = Router();
 
@@ -108,77 +108,72 @@ const router = Router();
  *                 message:
  *                   type: string
  */
-router.get(
-  "/checkout/preview",
-  async (req: Request, res: Response): Promise<void> => {
-    const { productId, userId } = req.query;
+router.get('/checkout/preview', async (req: Request, res: Response): Promise<void> => {
+  const { productId, userId } = req.query;
 
-    if (!productId || !userId) {
-      createErrorResponse(
-        res,
-        "INVALID_REQUEST",
-        "productId and userId query parameters are required",
-        400
-      );
+  if (!productId || !userId) {
+    createErrorResponse(
+      res,
+      'INVALID_REQUEST',
+      'productId and userId query parameters are required',
+      400
+    );
+    return;
+  }
+
+  try {
+    const product = await fetchProductById(String(productId));
+    const user = await fetchUserById(String(userId));
+
+    // Delegate pricing to pricing-api
+    const pricing = await fetchPricingQuote({
+      productId: product.id,
+      userId: user.id,
+      basePrice: product.price,
+      loyaltyTier: user.loyaltyTier,
+    });
+
+    const preview = {
+      product: {
+        id: product.id,
+        name: product.name,
+        stock: product.stock,
+        basePrice: product.price,
+      },
+      user: {
+        id: user.id,
+        name: user.name,
+        loyaltyTier: user.loyaltyTier,
+      },
+      pricing,
+    };
+
+    res.json(preview);
+  } catch (error: any) {
+    if (error.code === 'PRODUCT_NOT_FOUND') {
+      createErrorResponse(res, 'PRODUCT_NOT_FOUND', error.message, 404);
       return;
     }
 
-    try {
-      const product = await fetchProductById(String(productId));
-      const user = await fetchUserById(String(userId));
-
-      // Delegate pricing to pricing-api
-      const pricing = await fetchPricingQuote({
-        productId: product.id,
-        userId: user.id,
-        basePrice: product.price,
-        loyaltyTier: user.loyaltyTier
-      });
-
-      const preview = {
-        product: {
-          id: product.id,
-          name: product.name,
-          stock: product.stock,
-          basePrice: product.price
-        },
-        user: {
-          id: user.id,
-          name: user.name,
-          loyaltyTier: user.loyaltyTier
-        },
-        pricing
-      };
-
-      res.json(preview);
-    } catch (error: any) {
-      if (error.code === "PRODUCT_NOT_FOUND") {
-        createErrorResponse(res, "PRODUCT_NOT_FOUND", error.message, 404);
-        return;
-      }
-
-      if (error.code === "USER_NOT_FOUND") {
-        createErrorResponse(res, "USER_NOT_FOUND", error.message, 404);
-        return;
-      }
-
-      if (error.code === "PRICING_API_ERROR") {
-        createErrorResponse(res, "PRICING_API_ERROR", error.message, 502);
-        return;
-      }
-
-      console.error("Error in checkout preview:", error.message);
-
-      createErrorResponse(
-        res,
-        "UPSTREAM_UNAVAILABLE",
-        "Could not retrieve data from one or more upstream services",
-        502
-      );
+    if (error.code === 'USER_NOT_FOUND') {
+      createErrorResponse(res, 'USER_NOT_FOUND', error.message, 404);
+      return;
     }
+
+    if (error.code === 'PRICING_API_ERROR') {
+      createErrorResponse(res, 'PRICING_API_ERROR', error.message, 502);
+      return;
+    }
+
+    console.error('Error in checkout preview:', error.message);
+
+    createErrorResponse(
+      res,
+      'UPSTREAM_UNAVAILABLE',
+      'Could not retrieve data from one or more upstream services',
+      502
+    );
   }
-);
+});
 
 export default router;
-
-

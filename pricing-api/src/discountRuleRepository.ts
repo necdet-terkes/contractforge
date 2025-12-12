@@ -1,10 +1,6 @@
 // pricing-api/src/discountRuleRepository.ts
 
-import {
-  DiscountRule,
-  initialDiscountRules,
-  LoyaltyTier
-} from "./discountRules";
+import { DiscountRule, initialDiscountRules, LoyaltyTier } from './discountRules';
 
 let rules: DiscountRule[] = [...initialDiscountRules];
 
@@ -12,15 +8,11 @@ export async function listDiscountRules(): Promise<DiscountRule[]> {
   return rules;
 }
 
-export async function findDiscountRuleById(
-  id: string
-): Promise<DiscountRule | undefined> {
+export async function findDiscountRuleById(id: string): Promise<DiscountRule | undefined> {
   return rules.find((r) => r.id === id);
 }
 
-export async function findActiveRuleForTier(
-  tier: LoyaltyTier
-): Promise<DiscountRule | undefined> {
+export async function findActiveRuleForTier(tier: LoyaltyTier): Promise<DiscountRule | undefined> {
   // For now: first active rule for the given loyalty tier
   return rules.find((r) => r.loyaltyTier === tier && r.active);
 }
@@ -34,16 +26,14 @@ export async function createDiscountRule(input: {
 }): Promise<DiscountRule> {
   const exists = rules.some((r) => r.id === input.id);
   if (exists) {
-    const error = new Error(
-      `Discount rule with id '${input.id}' already exists`
-    );
-    (error as any).code = "RULE_ALREADY_EXISTS";
+    const error = new Error(`Discount rule with id '${input.id}' already exists`);
+    (error as any).code = 'RULE_ALREADY_EXISTS';
     throw error;
   }
 
   if (input.rate < 0 || input.rate > 1) {
-    const error = new Error("rate must be between 0 and 1");
-    (error as any).code = "INVALID_RATE";
+    const error = new Error('rate must be between 0 and 1');
+    (error as any).code = 'INVALID_RATE';
     throw error;
   }
 
@@ -52,7 +42,7 @@ export async function createDiscountRule(input: {
     loyaltyTier: input.loyaltyTier,
     rate: input.rate,
     description: input.description,
-    active: input.active ?? true
+    active: input.active ?? true,
   };
 
   rules.push(newRule);
@@ -61,19 +51,19 @@ export async function createDiscountRule(input: {
 
 export async function updateDiscountRule(
   id: string,
-  updates: Partial<Pick<DiscountRule, "loyaltyTier" | "rate" | "description" | "active">>
+  updates: Partial<Pick<DiscountRule, 'loyaltyTier' | 'rate' | 'description' | 'active'>>
 ): Promise<DiscountRule> {
   const idx = rules.findIndex((r) => r.id === id);
   if (idx === -1) {
     const error = new Error(`Discount rule with id '${id}' not found`);
-    (error as any).code = "RULE_NOT_FOUND";
+    (error as any).code = 'RULE_NOT_FOUND';
     throw error;
   }
 
   if (updates.rate != null) {
     if (updates.rate < 0 || updates.rate > 1) {
-      const error = new Error("rate must be between 0 and 1");
-      (error as any).code = "INVALID_RATE";
+      const error = new Error('rate must be between 0 and 1');
+      (error as any).code = 'INVALID_RATE';
       throw error;
     }
   }
@@ -81,7 +71,7 @@ export async function updateDiscountRule(
   const current = rules[idx];
   const updated: DiscountRule = {
     ...current,
-    ...updates
+    ...updates,
   };
 
   rules[idx] = updated;
@@ -92,7 +82,7 @@ export async function deleteDiscountRule(id: string): Promise<void> {
   const idx = rules.findIndex((r) => r.id === id);
   if (idx === -1) {
     const error = new Error(`Discount rule with id '${id}' not found`);
-    (error as any).code = "RULE_NOT_FOUND";
+    (error as any).code = 'RULE_NOT_FOUND';
     throw error;
   }
 

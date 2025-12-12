@@ -1,13 +1,13 @@
 // Reusable table component for resource lists with dark mode support
 
-import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
-import { getColors, spacing } from "../styles";
+import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
+import { getColors, spacing } from '../styles';
 
 interface Column<T> {
   key: keyof T | string;
   label: string;
-  align?: "left" | "right" | "center";
+  align?: 'left' | 'right' | 'center';
   render?: (item: T) => React.ReactNode;
 }
 
@@ -24,14 +24,14 @@ export function ResourceTable<T extends { id: string }>({
   columns,
   actions,
   loading,
-  emptyMessage = "No items found."
+  emptyMessage = 'No items found.',
 }: ResourceTableProps<T>) {
   const { theme } = useTheme();
   const colors = getColors(theme);
 
   if (loading) {
     return (
-      <div style={{ padding: spacing.lg, textAlign: "center", color: colors.text.secondary }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.text.secondary }}>
         Loading...
       </div>
     );
@@ -39,57 +39,55 @@ export function ResourceTable<T extends { id: string }>({
 
   if (items.length === 0) {
     return (
-      <div style={{ padding: spacing.lg, textAlign: "center", color: colors.text.muted }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.text.muted }}>
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div style={{ overflowX: 'auto' }}>
       <table
         style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "0.9rem"
+          width: '100%',
+          borderCollapse: 'collapse',
+          fontSize: '0.9rem',
         }}
       >
         <thead>
           <tr
             style={{
               backgroundColor: colors.background.secondary,
-              borderBottom: "2px solid " + colors.border.medium
+              borderBottom: '2px solid ' + colors.border.medium,
             }}
           >
             {columns.map((col) => (
               <th
                 key={String(col.key)}
-                align={col.align || "left"}
+                align={col.align || 'left'}
                 style={{
                   padding: spacing.md,
                   fontWeight: 600,
                   color: colors.text.primary,
-                  textAlign: col.align || "left"
+                  textAlign: col.align || 'left',
                 }}
               >
                 {col.label}
               </th>
             ))}
-            {actions && <th style={{ padding: spacing.md, width: "120px" }} />}
+            {actions && <th style={{ padding: spacing.md, width: '120px' }} />}
           </tr>
         </thead>
         <tbody>
           {items.map((item, idx) => {
-            const baseBg = idx % 2 === 0 
-              ? colors.background.primary 
-              : colors.background.secondary;
+            const baseBg = idx % 2 === 0 ? colors.background.primary : colors.background.secondary;
             return (
               <tr
                 key={item.id}
                 style={{
                   backgroundColor: baseBg,
-                  borderBottom: "1px solid " + colors.border.light,
-                  transition: "background-color 0.15s ease"
+                  borderBottom: '1px solid ' + colors.border.light,
+                  transition: 'background-color 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = colors.background.tertiary;
@@ -101,22 +99,20 @@ export function ResourceTable<T extends { id: string }>({
                 {columns.map((col) => (
                   <td
                     key={String(col.key)}
-                    align={col.align || "left"}
+                    align={col.align || 'left'}
                     style={{
                       padding: spacing.md,
-                      color: colors.text.primary
+                      color: colors.text.primary,
                     }}
                   >
-                    {col.render
-                      ? col.render(item)
-                      : String(item[col.key as keyof T] ?? "")}
+                    {col.render ? col.render(item) : String(item[col.key as keyof T] ?? '')}
                   </td>
                 ))}
                 {actions && (
                   <td
                     style={{
                       padding: spacing.md,
-                      textAlign: "right"
+                      textAlign: 'right',
                     }}
                   >
                     {actions(item)}
@@ -130,4 +126,3 @@ export function ResourceTable<T extends { id: string }>({
     </div>
   );
 }
-

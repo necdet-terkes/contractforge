@@ -1,6 +1,6 @@
 // Hook for managing CRUD operations on resources
 
-import { useState } from "react";
+import { useState } from 'react';
 
 export interface UseResourceCRUDOptions<T> {
   createFn: (data: any) => Promise<T>;
@@ -13,7 +13,7 @@ export function useResourceCRUD<T>({
   createFn,
   updateFn,
   deleteFn,
-  onSuccess
+  onSuccess,
 }: UseResourceCRUDOptions<T>) {
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ export function useResourceCRUD<T>({
       await createFn(data);
       onSuccess?.();
     } catch (err: any) {
-      const message = err.message ?? "Failed to create";
+      const message = err.message ?? 'Failed to create';
       setError(message);
       throw err;
     }
@@ -35,7 +35,7 @@ export function useResourceCRUD<T>({
       await updateFn(id, data);
       onSuccess?.();
     } catch (err: any) {
-      const message = err.message ?? "Failed to update";
+      const message = err.message ?? 'Failed to update';
       setError(message);
       throw err;
     }
@@ -47,7 +47,7 @@ export function useResourceCRUD<T>({
       await deleteFn(id);
       onSuccess?.();
     } catch (err: any) {
-      const message = err.message ?? "Failed to delete";
+      const message = err.message ?? 'Failed to delete';
       setError(message);
       throw err;
     }
@@ -55,4 +55,3 @@ export function useResourceCRUD<T>({
 
   return { create, update, remove, error, setError };
 }
-

@@ -1,6 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test';
 
-test("homepage renders", async ({ page }) => {
-  await page.goto("/");
+test('homepage renders', async ({ page }) => {
+  await page.goto('/');
   await expect(page).toHaveTitle(/ContractForge/i);
 });

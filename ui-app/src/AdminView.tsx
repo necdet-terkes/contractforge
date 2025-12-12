@@ -1,61 +1,53 @@
 // src/AdminView.tsx
 
-import React, { useState } from "react";
-import {
-  ProductPart,
-  UserPart,
-  DiscountRule
-} from "./types";
-import {
-  INVENTORY_API_BASE_URL,
-  USER_API_BASE_URL,
-  PRICING_API_BASE_URL
-} from "./config";
-import { useResourceList } from "./hooks/useResourceList";
-import { useResourceCRUD } from "./hooks/useResourceCRUD";
-import { ResourceSection } from "./components/ResourceSection";
-import { ResourceTable } from "./components/ResourceTable";
-import { Card } from "./components/Card";
-import { SectionHeader } from "./components/SectionHeader";
-import { useTheme } from "./contexts/ThemeContext";
-import { getStyles, spacing, getColors } from "./styles";
+import React, { useState } from 'react';
+import { ProductPart, UserPart, DiscountRule } from './types';
+import { INVENTORY_API_BASE_URL, USER_API_BASE_URL, PRICING_API_BASE_URL } from './config';
+import { useResourceList } from './hooks/useResourceList';
+import { useResourceCRUD } from './hooks/useResourceCRUD';
+import { ResourceSection } from './components/ResourceSection';
+import { ResourceTable } from './components/ResourceTable';
+import { Card } from './components/Card';
+import { SectionHeader } from './components/SectionHeader';
+import { useTheme } from './contexts/ThemeContext';
+import { getStyles, spacing, getColors } from './styles';
 
 // Swagger documentation URLs
 const SWAGGER_URLS = {
-  orchestrator: "http://localhost:4000/docs",
-  inventory: "http://localhost:4001/docs",
-  user: "http://localhost:4002/docs",
-  pricing: "http://localhost:4003/docs"
+  orchestrator: 'http://localhost:4000/docs',
+  inventory: 'http://localhost:4001/docs',
+  user: 'http://localhost:4002/docs',
+  pricing: 'http://localhost:4003/docs',
 };
 
 export const AdminView: React.FC = () => {
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const colors = getColors(theme);
-  
+
   // Users
   const [newUser, setNewUser] = useState({
-    id: "",
-    name: "",
-    loyaltyTier: "BRONZE" as UserPart["loyaltyTier"]
+    id: '',
+    name: '',
+    loyaltyTier: 'BRONZE' as UserPart['loyaltyTier'],
   });
 
   const {
     items: users,
     loading: usersLoading,
     error: usersError,
-    reload: reloadUsers
+    reload: reloadUsers,
   } = useResourceList<UserPart>({
     fetchFn: async () => {
       const resp = await fetch(`${USER_API_BASE_URL}/users`, {
-        headers: { Accept: "application/json" }
+        headers: { Accept: 'application/json' },
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data?.message ?? "Failed to load users");
+        throw new Error(data?.message ?? 'Failed to load users');
       }
       return data;
-    }
+    },
   });
 
   const {
@@ -63,49 +55,49 @@ export const AdminView: React.FC = () => {
     update: updateUser,
     remove: deleteUser,
     error: userCrudError,
-    setError: setUserCrudError
+    setError: setUserCrudError,
   } = useResourceCRUD({
     createFn: async (data) => {
       const resp = await fetch(`${USER_API_BASE_URL}/users`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to create user");
+        throw new Error(result?.message ?? 'Failed to create user');
       }
       return result;
     },
     updateFn: async (id, data) => {
       const resp = await fetch(`${USER_API_BASE_URL}/users/${id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to update user");
+        throw new Error(result?.message ?? 'Failed to update user');
       }
       return result;
     },
     deleteFn: async (id) => {
       const resp = await fetch(`${USER_API_BASE_URL}/users/${id}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" }
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
       });
       if (!resp.ok && resp.status !== 204) {
         const result = await resp.json().catch(() => null);
-        throw new Error(result?.message ?? "Failed to delete user");
+        throw new Error(result?.message ?? 'Failed to delete user');
       }
     },
-    onSuccess: reloadUsers
+    onSuccess: reloadUsers,
   });
 
   async function handleCreateUser(e: React.FormEvent) {
@@ -113,17 +105,17 @@ export const AdminView: React.FC = () => {
     setUserCrudError(null);
     try {
       await createUser(newUser);
-      setNewUser({ id: "", name: "", loyaltyTier: "BRONZE" });
+      setNewUser({ id: '', name: '', loyaltyTier: 'BRONZE' });
     } catch (err) {
       // Error already set by hook
     }
   }
 
   async function handleUpdateUser(user: UserPart) {
-    const name = window.prompt("Update name", user.name);
+    const name = window.prompt('Update name', user.name);
     if (name === null) return;
     const loyalty = window
-      .prompt("Update loyalty tier (BRONZE/SILVER/GOLD)", user.loyaltyTier)
+      .prompt('Update loyalty tier (BRONZE/SILVER/GOLD)', user.loyaltyTier)
       ?.toUpperCase();
     if (loyalty === null) return;
 
@@ -131,7 +123,7 @@ export const AdminView: React.FC = () => {
     try {
       await updateUser(user.id, {
         name: name.trim(),
-        loyaltyTier: loyalty?.trim() || undefined
+        loyaltyTier: loyalty?.trim() || undefined,
       });
     } catch (err) {
       // Error already set by hook
@@ -149,33 +141,33 @@ export const AdminView: React.FC = () => {
 
   // Products
   const [newProduct, setNewProduct] = useState({
-    id: "",
-    name: "",
+    id: '',
+    name: '',
     stock: 0,
-    price: 0
+    price: 0,
   });
 
   const {
     items: products,
     loading: productsLoading,
     error: productsError,
-    reload: reloadProducts
+    reload: reloadProducts,
   } = useResourceList<ProductPart>({
     fetchFn: async () => {
       const resp = await fetch(`${INVENTORY_API_BASE_URL}/products`, {
-        headers: { Accept: "application/json" }
+        headers: { Accept: 'application/json' },
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data?.message ?? "Failed to load products");
+        throw new Error(data?.message ?? 'Failed to load products');
       }
       return data.map((p: any) => ({
         id: p.id,
         name: p.name,
         stock: p.stock,
-        basePrice: p.price
+        basePrice: p.price,
       }));
-    }
+    },
   });
 
   const {
@@ -183,58 +175,58 @@ export const AdminView: React.FC = () => {
     update: updateProduct,
     remove: deleteProduct,
     error: productCrudError,
-    setError: setProductCrudError
+    setError: setProductCrudError,
   } = useResourceCRUD({
     createFn: async (data) => {
       const resp = await fetch(`${INVENTORY_API_BASE_URL}/products`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           id: data.id,
           name: data.name,
           stock: Number(data.stock),
-          price: Number(data.price)
-        })
+          price: Number(data.price),
+        }),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to create product");
+        throw new Error(result?.message ?? 'Failed to create product');
       }
       return result;
     },
     updateFn: async (id, data) => {
       const resp = await fetch(`${INVENTORY_API_BASE_URL}/products/${id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           name: data.name.trim(),
           stock: data.stock,
-          price: data.price
-        })
+          price: data.price,
+        }),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to update product");
+        throw new Error(result?.message ?? 'Failed to update product');
       }
       return result;
     },
     deleteFn: async (id) => {
       const resp = await fetch(`${INVENTORY_API_BASE_URL}/products/${id}`, {
-        method: "DELETE",
-        headers: { Accept: "application/json" }
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
       });
       if (!resp.ok && resp.status !== 204) {
         const result = await resp.json().catch(() => null);
-        throw new Error(result?.message ?? "Failed to delete product");
+        throw new Error(result?.message ?? 'Failed to delete product');
       }
     },
-    onSuccess: reloadProducts
+    onSuccess: reloadProducts,
   });
 
   async function handleCreateProduct(e: React.FormEvent) {
@@ -242,21 +234,18 @@ export const AdminView: React.FC = () => {
     setProductCrudError(null);
     try {
       await createProduct(newProduct);
-      setNewProduct({ id: "", name: "", stock: 0, price: 0 });
+      setNewProduct({ id: '', name: '', stock: 0, price: 0 });
     } catch (err) {
       // Error already set by hook
     }
   }
 
   async function handleUpdateProduct(product: ProductPart) {
-    const name = window.prompt("Update product name", product.name);
+    const name = window.prompt('Update product name', product.name);
     if (name === null) return;
-    const stockRaw = window.prompt("Update stock (integer)", String(product.stock));
+    const stockRaw = window.prompt('Update stock (integer)', String(product.stock));
     if (stockRaw === null) return;
-    const priceRaw = window.prompt(
-      "Update price",
-      String(product.basePrice)
-    );
+    const priceRaw = window.prompt('Update price', String(product.basePrice));
     if (priceRaw === null) return;
 
     const stock = Number(stockRaw);
@@ -281,29 +270,29 @@ export const AdminView: React.FC = () => {
 
   // Discount rules
   const [newRule, setNewRule] = useState({
-    id: "",
-    loyaltyTier: "BRONZE" as DiscountRule["loyaltyTier"],
+    id: '',
+    loyaltyTier: 'BRONZE' as DiscountRule['loyaltyTier'],
     rate: 0,
-    description: "",
-    active: true
+    description: '',
+    active: true,
   });
 
   const {
     items: rules,
     loading: rulesLoading,
     error: rulesError,
-    reload: reloadRules
+    reload: reloadRules,
   } = useResourceList<DiscountRule>({
     fetchFn: async () => {
       const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/rules`, {
-        headers: { Accept: "application/json" }
+        headers: { Accept: 'application/json' },
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data?.message ?? "Failed to load discount rules");
+        throw new Error(data?.message ?? 'Failed to load discount rules');
       }
       return data;
-    }
+    },
   });
 
   const {
@@ -311,58 +300,55 @@ export const AdminView: React.FC = () => {
     update: updateRule,
     remove: deleteRule,
     error: ruleCrudError,
-    setError: setRuleCrudError
+    setError: setRuleCrudError,
   } = useResourceCRUD({
     createFn: async (data) => {
       const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/rules`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           id: data.id,
           loyaltyTier: data.loyaltyTier,
           rate: Number(data.rate),
           description: data.description,
-          active: data.active
-        })
+          active: data.active,
+        }),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to create discount rule");
+        throw new Error(result?.message ?? 'Failed to create discount rule');
       }
       return result;
     },
     updateFn: async (id, data) => {
       const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/rules/${id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
       const result = await resp.json().catch(() => null);
       if (!resp.ok) {
-        throw new Error(result?.message ?? "Failed to update discount rule");
+        throw new Error(result?.message ?? 'Failed to update discount rule');
       }
       return result;
     },
     deleteFn: async (id) => {
-      const resp = await fetch(
-        `${PRICING_API_BASE_URL}/pricing/rules/${id}`,
-        {
-          method: "DELETE",
-          headers: { Accept: "application/json" }
-        }
-      );
+      const resp = await fetch(`${PRICING_API_BASE_URL}/pricing/rules/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
       if (!resp.ok && resp.status !== 204) {
         const result = await resp.json().catch(() => null);
-        throw new Error(result?.message ?? "Failed to delete discount rule");
+        throw new Error(result?.message ?? 'Failed to delete discount rule');
       }
     },
-    onSuccess: reloadRules
+    onSuccess: reloadRules,
   });
 
   async function handleCreateRule(e: React.FormEvent) {
@@ -371,11 +357,11 @@ export const AdminView: React.FC = () => {
     try {
       await createRule(newRule);
       setNewRule({
-        id: "",
-        loyaltyTier: "BRONZE",
+        id: '',
+        loyaltyTier: 'BRONZE',
         rate: 0,
-        description: "",
-        active: true
+        description: '',
+        active: true,
       });
     } catch (err) {
       // Error already set by hook
@@ -384,39 +370,29 @@ export const AdminView: React.FC = () => {
 
   async function handleUpdateRule(rule: DiscountRule) {
     const loyaltyInput = window
-      .prompt(
-        "Update loyalty tier (BRONZE/SILVER/GOLD) or leave as-is",
-        rule.loyaltyTier
-      )
+      .prompt('Update loyalty tier (BRONZE/SILVER/GOLD) or leave as-is', rule.loyaltyTier)
       ?.toUpperCase();
     if (loyaltyInput === null) return;
 
-    const rateRaw = window.prompt("Update rate (0-1)", String(rule.rate));
+    const rateRaw = window.prompt('Update rate (0-1)', String(rule.rate));
     if (rateRaw === null) return;
 
-    const description = window.prompt(
-      "Update description",
-      rule.description || ""
-    );
+    const description = window.prompt('Update description', rule.description || '');
     if (description === null) return;
 
-    const activeRaw = window.prompt(
-      "Active? (true/false)",
-      String(rule.active)
-    );
+    const activeRaw = window.prompt('Active? (true/false)', String(rule.active));
     if (activeRaw === null) return;
 
     const updates: Partial<DiscountRule> = {
-      loyaltyTier: (loyaltyInput?.trim() as DiscountRule["loyaltyTier"]) ||
-        rule.loyaltyTier,
-      rate: rateRaw.trim() === "" ? rule.rate : Number(rateRaw),
+      loyaltyTier: (loyaltyInput?.trim() as DiscountRule['loyaltyTier']) || rule.loyaltyTier,
+      rate: rateRaw.trim() === '' ? rule.rate : Number(rateRaw),
       description: description.trim(),
       active:
-        activeRaw.trim().toLowerCase() === "true"
+        activeRaw.trim().toLowerCase() === 'true'
           ? true
-          : activeRaw.trim().toLowerCase() === "false"
-          ? false
-          : rule.active
+          : activeRaw.trim().toLowerCase() === 'false'
+            ? false
+            : rule.active,
     };
 
     setRuleCrudError(null);
@@ -445,34 +421,27 @@ export const AdminView: React.FC = () => {
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 320px",
+          display: 'grid',
+          gridTemplateColumns: '1fr 320px',
           gap: spacing.xl,
-          alignItems: "start"
+          alignItems: 'start',
         }}
       >
         {/* Main Content */}
         <div>
           {/* USERS */}
-          <ResourceSection
-            title="Users"
-            error={usersError || userCrudError || null}
-          >
+          <ResourceSection title="Users" error={usersError || userCrudError || null}>
             <form onSubmit={handleCreateUser} style={styles.form}>
               <input
                 placeholder="ID (e.g. u4)"
                 value={newUser.id}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, id: e.target.value }))
-                }
+                onChange={(e) => setNewUser((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <input
                 placeholder="Name"
                 value={newUser.name}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))}
                 style={styles.input}
               />
               <select
@@ -480,7 +449,7 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewUser((prev) => ({
                     ...prev,
-                    loyaltyTier: e.target.value as UserPart["loyaltyTier"]
+                    loyaltyTier: e.target.value as UserPart['loyaltyTier'],
                   }))
                 }
                 style={styles.select}
@@ -512,17 +481,17 @@ export const AdminView: React.FC = () => {
               </button>
             </form>
 
-            <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <ResourceTable
                 items={users}
                 loading={usersLoading}
                 columns={[
-                  { key: "id", label: "ID" },
-                  { key: "name", label: "Name" },
-                  { key: "loyaltyTier", label: "Tier" }
+                  { key: 'id', label: 'ID' },
+                  { key: 'name', label: 'Name' },
+                  { key: 'loyaltyTier', label: 'Tier' },
                 ]}
                 actions={(user) => (
-                  <div style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => handleUpdateUser(user)}
                       onMouseEnter={(e) => {
@@ -559,25 +528,18 @@ export const AdminView: React.FC = () => {
           </ResourceSection>
 
           {/* PRODUCTS */}
-          <ResourceSection
-            title="Products"
-            error={productsError || productCrudError || null}
-          >
+          <ResourceSection title="Products" error={productsError || productCrudError || null}>
             <form onSubmit={handleCreateProduct} style={styles.form}>
               <input
                 placeholder="ID (e.g. p10)"
                 value={newProduct.id}
-                onChange={(e) =>
-                  setNewProduct((prev) => ({ ...prev, id: e.target.value }))
-                }
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <input
                 placeholder="Name"
                 value={newProduct.name}
-                onChange={(e) =>
-                  setNewProduct((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, name: e.target.value }))}
                 style={styles.input}
               />
               <input
@@ -587,7 +549,7 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewProduct((prev) => ({
                     ...prev,
-                    stock: Number(e.target.value)
+                    stock: Number(e.target.value),
                   }))
                 }
                 style={styles.input}
@@ -599,7 +561,7 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewProduct((prev) => ({
                     ...prev,
-                    price: Number(e.target.value)
+                    price: Number(e.target.value),
                   }))
                 }
                 style={styles.input}
@@ -627,28 +589,28 @@ export const AdminView: React.FC = () => {
               </button>
             </form>
 
-            <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <ResourceTable
                 items={products}
                 loading={productsLoading}
                 columns={[
-                  { key: "id", label: "ID" },
-                  { key: "name", label: "Name" },
+                  { key: 'id', label: 'ID' },
+                  { key: 'name', label: 'Name' },
                   {
-                    key: "stock",
-                    label: "Stock",
-                    align: "right",
-                    render: (p) => String(p.stock)
+                    key: 'stock',
+                    label: 'Stock',
+                    align: 'right',
+                    render: (p) => String(p.stock),
                   },
                   {
-                    key: "basePrice",
-                    label: "Price",
-                    align: "right",
-                    render: (p) => `£${p.basePrice}`
-                  }
+                    key: 'basePrice',
+                    label: 'Price',
+                    align: 'right',
+                    render: (p) => `£${p.basePrice}`,
+                  },
                 ]}
                 actions={(product) => (
-                  <div style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => handleUpdateProduct(product)}
                       onMouseEnter={(e) => {
@@ -685,17 +647,12 @@ export const AdminView: React.FC = () => {
           </ResourceSection>
 
           {/* PRICING RULES */}
-          <ResourceSection
-            title="Pricing Rules"
-            error={rulesError || ruleCrudError || null}
-          >
+          <ResourceSection title="Pricing Rules" error={rulesError || ruleCrudError || null}>
             <form onSubmit={handleCreateRule} style={styles.form}>
               <input
                 placeholder="Rule ID (e.g. rule-gold-30)"
                 value={newRule.id}
-                onChange={(e) =>
-                  setNewRule((prev) => ({ ...prev, id: e.target.value }))
-                }
+                onChange={(e) => setNewRule((prev) => ({ ...prev, id: e.target.value }))}
                 style={styles.input}
               />
               <select
@@ -703,8 +660,7 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewRule((prev) => ({
                     ...prev,
-                    loyaltyTier: e.target
-                      .value as DiscountRule["loyaltyTier"]
+                    loyaltyTier: e.target.value as DiscountRule['loyaltyTier'],
                   }))
                 }
                 style={styles.select}
@@ -721,7 +677,7 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewRule((prev) => ({
                     ...prev,
-                    rate: Number(e.target.value)
+                    rate: Number(e.target.value),
                   }))
                 }
                 style={styles.input}
@@ -732,28 +688,26 @@ export const AdminView: React.FC = () => {
                 onChange={(e) =>
                   setNewRule((prev) => ({
                     ...prev,
-                    description: e.target.value
+                    description: e.target.value,
                   }))
                 }
                 style={styles.input}
               />
               <label
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.5rem 0.75rem",
-                  border: "1px solid #ced4da",
-                  borderRadius: "6px",
-                  backgroundColor: "#fff"
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid #ced4da',
+                  borderRadius: '6px',
+                  backgroundColor: '#fff',
                 }}
               >
                 <input
                   type="checkbox"
                   checked={newRule.active}
-                  onChange={(e) =>
-                    setNewRule((prev) => ({ ...prev, active: e.target.checked }))
-                  }
+                  onChange={(e) => setNewRule((prev) => ({ ...prev, active: e.target.checked }))}
                 />
                 Active
               </label>
@@ -780,33 +734,33 @@ export const AdminView: React.FC = () => {
               </button>
             </form>
 
-            <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <ResourceTable
                 items={rules}
                 loading={rulesLoading}
                 columns={[
-                  { key: "id", label: "ID" },
-                  { key: "loyaltyTier", label: "Tier" },
+                  { key: 'id', label: 'ID' },
+                  { key: 'loyaltyTier', label: 'Tier' },
                   {
-                    key: "rate",
-                    label: "Rate",
-                    align: "right",
-                    render: (r) => String(r.rate)
+                    key: 'rate',
+                    label: 'Rate',
+                    align: 'right',
+                    render: (r) => String(r.rate),
                   },
                   {
-                    key: "description",
-                    label: "Description",
-                    render: (r) => r.description || "-"
+                    key: 'description',
+                    label: 'Description',
+                    render: (r) => r.description || '-',
                   },
                   {
-                    key: "active",
-                    label: "Active",
-                    align: "center",
-                    render: (r) => (r.active ? "✅" : "❌")
-                  }
+                    key: 'active',
+                    label: 'Active',
+                    align: 'center',
+                    render: (r) => (r.active ? '✅' : '❌'),
+                  },
                 ]}
                 actions={(rule) => (
-                  <div style={{ display: "flex", gap: "0.35rem", justifyContent: "flex-end" }}>
+                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => handleUpdateRule(rule)}
                       onMouseEnter={(e) => {
@@ -844,16 +798,13 @@ export const AdminView: React.FC = () => {
         </div>
 
         {/* Sidebar with API Documentation */}
-        <div style={{ position: "sticky", top: spacing.lg }}>
-          <Card
-            title="API Documentation"
-            description="Swagger documentation for all services"
-          >
+        <div style={{ position: 'sticky', top: spacing.lg }}>
+          <Card title="API Documentation" description="Swagger documentation for all services">
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: spacing.md
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing.md,
               }}
             >
               <a
@@ -861,16 +812,16 @@ export const AdminView: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: spacing.sm,
                   padding: spacing.md,
-                  borderRadius: "6px",
-                  border: "1px solid " + colors.border.light,
-                  textDecoration: "none",
+                  borderRadius: '6px',
+                  border: '1px solid ' + colors.border.light,
+                  textDecoration: 'none',
                   color: colors.text.primary,
                   backgroundColor: colors.background.primary,
-                  transition: "all 0.15s ease"
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   const colors = getColors(theme);
@@ -883,12 +834,12 @@ export const AdminView: React.FC = () => {
                   e.currentTarget.style.borderColor = colors.border.light;
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>📚</span>
+                <span style={{ fontSize: '1.25rem' }}>📚</span>
                 <div>
-                  <div style={{ fontWeight: 500, color: colors.text.primary }}>Orchestrator API</div>
-                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
-                    Port 4000
+                  <div style={{ fontWeight: 500, color: colors.text.primary }}>
+                    Orchestrator API
                   </div>
+                  <div style={{ fontSize: '0.85rem', color: colors.text.secondary }}>Port 4000</div>
                 </div>
               </a>
 
@@ -897,16 +848,16 @@ export const AdminView: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: spacing.sm,
                   padding: spacing.md,
-                  borderRadius: "6px",
-                  border: "1px solid " + colors.border.light,
-                  textDecoration: "none",
+                  borderRadius: '6px',
+                  border: '1px solid ' + colors.border.light,
+                  textDecoration: 'none',
                   color: colors.text.primary,
                   backgroundColor: colors.background.primary,
-                  transition: "all 0.15s ease"
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   const colors = getColors(theme);
@@ -919,12 +870,10 @@ export const AdminView: React.FC = () => {
                   e.currentTarget.style.borderColor = colors.border.light;
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>📦</span>
+                <span style={{ fontSize: '1.25rem' }}>📦</span>
                 <div>
                   <div style={{ fontWeight: 500, color: colors.text.primary }}>Inventory API</div>
-                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
-                    Port 4001
-                  </div>
+                  <div style={{ fontSize: '0.85rem', color: colors.text.secondary }}>Port 4001</div>
                 </div>
               </a>
 
@@ -933,16 +882,16 @@ export const AdminView: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: spacing.sm,
                   padding: spacing.md,
-                  borderRadius: "6px",
-                  border: "1px solid " + colors.border.light,
-                  textDecoration: "none",
+                  borderRadius: '6px',
+                  border: '1px solid ' + colors.border.light,
+                  textDecoration: 'none',
                   color: colors.text.primary,
                   backgroundColor: colors.background.primary,
-                  transition: "all 0.15s ease"
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   const colors = getColors(theme);
@@ -955,12 +904,10 @@ export const AdminView: React.FC = () => {
                   e.currentTarget.style.borderColor = colors.border.light;
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>👤</span>
+                <span style={{ fontSize: '1.25rem' }}>👤</span>
                 <div>
                   <div style={{ fontWeight: 500, color: colors.text.primary }}>User API</div>
-                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
-                    Port 4002
-                  </div>
+                  <div style={{ fontSize: '0.85rem', color: colors.text.secondary }}>Port 4002</div>
                 </div>
               </a>
 
@@ -969,16 +916,16 @@ export const AdminView: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: spacing.sm,
                   padding: spacing.md,
-                  borderRadius: "6px",
-                  border: "1px solid " + colors.border.light,
-                  textDecoration: "none",
+                  borderRadius: '6px',
+                  border: '1px solid ' + colors.border.light,
+                  textDecoration: 'none',
                   color: colors.text.primary,
                   backgroundColor: colors.background.primary,
-                  transition: "all 0.15s ease"
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   const colors = getColors(theme);
@@ -991,12 +938,10 @@ export const AdminView: React.FC = () => {
                   e.currentTarget.style.borderColor = colors.border.light;
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>💰</span>
+                <span style={{ fontSize: '1.25rem' }}>💰</span>
                 <div>
                   <div style={{ fontWeight: 500, color: colors.text.primary }}>Pricing API</div>
-                  <div style={{ fontSize: "0.85rem", color: colors.text.secondary }}>
-                    Port 4003
-                  </div>
+                  <div style={{ fontSize: '0.85rem', color: colors.text.secondary }}>Port 4003</div>
                 </div>
               </a>
             </div>

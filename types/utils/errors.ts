@@ -1,6 +1,6 @@
 // Shared error response utility used across all services
 
-import { Response } from "express";
+import { Response } from 'express';
 
 export function createErrorResponse(
   res: Response,
@@ -10,7 +10,6 @@ export function createErrorResponse(
 ): void {
   res.status(statusCode).json({
     error: code,
-    message
+    message,
   });
 }
-

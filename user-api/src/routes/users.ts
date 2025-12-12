@@ -1,16 +1,10 @@
 // user-api/src/routes/users.ts
 
-import { Request, Response, Router } from "express";
-import { LoyaltyTier } from "../../../types/loyaltyTier";
-import {
-  listUsers,
-  findUserById,
-  createUser,
-  updateUser,
-  deleteUser
-} from "../userRepository";
-import { createErrorResponse } from "../../../types/utils/errors";
-import { validateLoyaltyTier } from "../../../types/utils/validation";
+import { Request, Response, Router } from 'express';
+import { LoyaltyTier } from '../../../types/loyaltyTier';
+import { listUsers, findUserById, createUser, updateUser, deleteUser } from '../userRepository';
+import { createErrorResponse } from '../../../types/utils/errors';
+import { validateLoyaltyTier } from '../../../types/utils/validation';
 
 const router = Router();
 
@@ -38,7 +32,7 @@ const router = Router();
  *                     type: string
  *                     enum: [BRONZE, SILVER, GOLD]
  */
-router.get("/users", async (_req: Request, res: Response) => {
+router.get('/users', async (_req: Request, res: Response) => {
   const users = await listUsers();
   res.json(users);
 });
@@ -82,16 +76,11 @@ router.get("/users", async (_req: Request, res: Response) => {
  *                 message:
  *                   type: string
  */
-router.get("/users/:id", async (req: Request, res: Response) => {
+router.get('/users/:id', async (req: Request, res: Response) => {
   const user = await findUserById(req.params.id);
 
   if (!user) {
-    createErrorResponse(
-      res,
-      "USER_NOT_FOUND",
-      `User with id '${req.params.id}' not found`,
-      404
-    );
+    createErrorResponse(res, 'USER_NOT_FOUND', `User with id '${req.params.id}' not found`, 404);
     return;
   }
 
@@ -162,27 +151,17 @@ router.get("/users/:id", async (req: Request, res: Response) => {
  *                 message:
  *                   type: string
  */
-router.post("/users", async (req: Request, res: Response) => {
+router.post('/users', async (req: Request, res: Response) => {
   const { id, name, loyaltyTier } = req.body ?? {};
 
   if (!id || !name || !loyaltyTier) {
-    createErrorResponse(
-      res,
-      "INVALID_PAYLOAD",
-      "id, name and loyaltyTier are required",
-      400
-    );
+    createErrorResponse(res, 'INVALID_PAYLOAD', 'id, name and loyaltyTier are required', 400);
     return;
   }
 
   const tierValidation = validateLoyaltyTier(loyaltyTier);
   if (!tierValidation.valid) {
-    createErrorResponse(
-      res,
-      tierValidation.error!.code,
-      tierValidation.error!.message,
-      400
-    );
+    createErrorResponse(res, tierValidation.error!.code, tierValidation.error!.message, 400);
     return;
   }
 
@@ -190,23 +169,18 @@ router.post("/users", async (req: Request, res: Response) => {
     const user = await createUser({
       id: String(id),
       name: String(name),
-      loyaltyTier: tierValidation.value!
+      loyaltyTier: tierValidation.value!,
     });
 
     res.status(201).json(user);
   } catch (error: any) {
-    if (error.code === "USER_ALREADY_EXISTS") {
-      createErrorResponse(res, "USER_ALREADY_EXISTS", error.message, 409);
+    if (error.code === 'USER_ALREADY_EXISTS') {
+      createErrorResponse(res, 'USER_ALREADY_EXISTS', error.message, 409);
       return;
     }
 
-    console.error("Error while creating user:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while creating user",
-      500
-    );
+    console.error('Error while creating user:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while creating user', 500);
   }
 });
 
@@ -256,14 +230,14 @@ router.post("/users", async (req: Request, res: Response) => {
  *       404:
  *         description: User not found
  */
-router.put("/users/:id", async (req: Request, res: Response) => {
+router.put('/users/:id', async (req: Request, res: Response) => {
   const { name, loyaltyTier } = req.body ?? {};
 
   if (name == null && loyaltyTier == null) {
     createErrorResponse(
       res,
-      "INVALID_PAYLOAD",
-      "At least one of name or loyaltyTier must be provided",
+      'INVALID_PAYLOAD',
+      'At least one of name or loyaltyTier must be provided',
       400
     );
     return;
@@ -274,12 +248,7 @@ router.put("/users/:id", async (req: Request, res: Response) => {
   if (loyaltyTier != null) {
     const tierValidation = validateLoyaltyTier(loyaltyTier);
     if (!tierValidation.valid) {
-      createErrorResponse(
-        res,
-        tierValidation.error!.code,
-        tierValidation.error!.message,
-        400
-      );
+      createErrorResponse(res, tierValidation.error!.code, tierValidation.error!.message, 400);
       return;
     }
     normalizedTier = tierValidation.value;
@@ -288,23 +257,18 @@ router.put("/users/:id", async (req: Request, res: Response) => {
   try {
     const updated = await updateUser(req.params.id, {
       name,
-      loyaltyTier: normalizedTier
+      loyaltyTier: normalizedTier,
     });
 
     res.json(updated);
   } catch (error: any) {
-    if (error.code === "USER_NOT_FOUND") {
-      createErrorResponse(res, "USER_NOT_FOUND", error.message, 404);
+    if (error.code === 'USER_NOT_FOUND') {
+      createErrorResponse(res, 'USER_NOT_FOUND', error.message, 404);
       return;
     }
 
-    console.error("Error while updating user:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while updating user",
-      500
-    );
+    console.error('Error while updating user:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while updating user', 500);
   }
 });
 
@@ -328,26 +292,19 @@ router.put("/users/:id", async (req: Request, res: Response) => {
  *       404:
  *         description: User not found
  */
-router.delete("/users/:id", async (req: Request, res: Response) => {
+router.delete('/users/:id', async (req: Request, res: Response) => {
   try {
     await deleteUser(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    if (error.code === "USER_NOT_FOUND") {
-      createErrorResponse(res, "USER_NOT_FOUND", error.message, 404);
+    if (error.code === 'USER_NOT_FOUND') {
+      createErrorResponse(res, 'USER_NOT_FOUND', error.message, 404);
       return;
     }
 
-    console.error("Error while deleting user:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while deleting user",
-      500
-    );
+    console.error('Error while deleting user:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while deleting user', 500);
   }
 });
 
 export default router;
-
-

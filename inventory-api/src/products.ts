@@ -10,33 +10,33 @@ export type Product = {
 // Initial seed data for the in-memory repository
 export const initialProducts: Product[] = [
   {
-    id: "p1",
-    name: "Coffee Machine",
+    id: 'p1',
+    name: 'Coffee Machine',
     stock: 3,
-    price: 100
+    price: 100,
   },
   {
-    id: "p2",
-    name: "Electric Kettle",
+    id: 'p2',
+    name: 'Electric Kettle',
     stock: 0,
-    price: 40
+    price: 40,
   },
   {
-    id: "p3",
-    name: "Toaster",
+    id: 'p3',
+    name: 'Toaster',
     stock: 10,
-    price: 35
+    price: 35,
   },
   {
-    id: "p4",
-    name: "Espresso Grinder",
+    id: 'p4',
+    name: 'Espresso Grinder',
     stock: 5,
-    price: 120
+    price: 120,
   },
   {
-    id: "p5",
-    name: "Milk Frother",
+    id: 'p5',
+    name: 'Milk Frother',
     stock: 8,
-    price: 25
-  }
+    price: 25,
+  },
 ];

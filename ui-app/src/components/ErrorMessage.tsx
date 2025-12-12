@@ -1,8 +1,8 @@
 // Error message component with consistent styling and dark mode support
 
-import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
-import { getColors, spacing } from "../styles";
+import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
+import { getColors, spacing } from '../styles';
 
 interface ErrorMessageProps {
   message: string | null;
@@ -17,17 +17,16 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => {
   return (
     <div
       style={{
-        border: "1px solid " + colors.error.border,
+        border: '1px solid ' + colors.error.border,
         backgroundColor: colors.error.bg,
         color: colors.error.text,
-        padding: spacing.md + " " + spacing.lg,
-        borderRadius: "6px",
+        padding: spacing.md + ' ' + spacing.lg,
+        borderRadius: '6px',
         marginBottom: spacing.lg,
-        fontSize: "0.9rem"
+        fontSize: '0.9rem',
       }}
     >
       {message}
     </div>
   );
 };
-

@@ -1,15 +1,15 @@
 // inventory-api/src/routes/products.ts
 
-import { Request, Response, Router } from "express";
+import { Request, Response, Router } from 'express';
 import {
   listProducts,
   findProductById,
   createProduct,
   updateProduct,
-  deleteProduct
-} from "../productRepository";
-import { createErrorResponse } from "../../../types/utils/errors";
-import { validateStock, validatePrice } from "../utils/validation";
+  deleteProduct,
+} from '../productRepository';
+import { createErrorResponse } from '../../../types/utils/errors';
+import { validateStock, validatePrice } from '../utils/validation';
 
 const router = Router();
 
@@ -38,7 +38,7 @@ const router = Router();
  *                   price:
  *                     type: number
  */
-router.get("/products", async (_req: Request, res: Response) => {
+router.get('/products', async (_req: Request, res: Response) => {
   const products = await listProducts();
   res.json(products);
 });
@@ -83,13 +83,13 @@ router.get("/products", async (_req: Request, res: Response) => {
  *                 message:
  *                   type: string
  */
-router.get("/products/:id", async (req: Request, res: Response) => {
+router.get('/products/:id', async (req: Request, res: Response) => {
   const product = await findProductById(req.params.id);
 
   if (!product) {
     createErrorResponse(
       res,
-      "PRODUCT_NOT_FOUND",
+      'PRODUCT_NOT_FOUND',
       `Product with id '${req.params.id}' not found`,
       404
     );
@@ -148,38 +148,23 @@ router.get("/products/:id", async (req: Request, res: Response) => {
  *       409:
  *         description: Product with the same ID already exists
  */
-router.post("/products", async (req: Request, res: Response) => {
+router.post('/products', async (req: Request, res: Response) => {
   const { id, name, stock, price } = req.body ?? {};
 
   if (id == null || name == null || stock == null || price == null) {
-    createErrorResponse(
-      res,
-      "INVALID_PAYLOAD",
-      "id, name, stock and price are required",
-      400
-    );
+    createErrorResponse(res, 'INVALID_PAYLOAD', 'id, name, stock and price are required', 400);
     return;
   }
 
   const stockValidation = validateStock(stock);
   if (!stockValidation.valid) {
-    createErrorResponse(
-      res,
-      stockValidation.error!.code,
-      stockValidation.error!.message,
-      400
-    );
+    createErrorResponse(res, stockValidation.error!.code, stockValidation.error!.message, 400);
     return;
   }
 
   const priceValidation = validatePrice(price);
   if (!priceValidation.valid) {
-    createErrorResponse(
-      res,
-      priceValidation.error!.code,
-      priceValidation.error!.message,
-      400
-    );
+    createErrorResponse(res, priceValidation.error!.code, priceValidation.error!.message, 400);
     return;
   }
 
@@ -188,28 +173,23 @@ router.post("/products", async (req: Request, res: Response) => {
       id: String(id),
       name: String(name),
       stock: stockValidation.value!,
-      price: priceValidation.value!
+      price: priceValidation.value!,
     });
 
     res.status(201).json(product);
   } catch (error: any) {
-    if (error.code === "PRODUCT_ALREADY_EXISTS") {
-      createErrorResponse(res, "PRODUCT_ALREADY_EXISTS", error.message, 409);
+    if (error.code === 'PRODUCT_ALREADY_EXISTS') {
+      createErrorResponse(res, 'PRODUCT_ALREADY_EXISTS', error.message, 409);
       return;
     }
 
-    if (error.code === "INVALID_STOCK" || error.code === "INVALID_PRICE") {
+    if (error.code === 'INVALID_STOCK' || error.code === 'INVALID_PRICE') {
       createErrorResponse(res, error.code, error.message, 400);
       return;
     }
 
-    console.error("Error while creating product:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while creating product",
-      500
-    );
+    console.error('Error while creating product:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while creating product', 500);
   }
 });
 
@@ -248,14 +228,14 @@ router.post("/products", async (req: Request, res: Response) => {
  *       404:
  *         description: Product not found
  */
-router.put("/products/:id", async (req: Request, res: Response) => {
+router.put('/products/:id', async (req: Request, res: Response) => {
   const { name, stock, price } = req.body ?? {};
 
   if (name == null && stock == null && price == null) {
     createErrorResponse(
       res,
-      "INVALID_PAYLOAD",
-      "At least one of name, stock or price must be provided",
+      'INVALID_PAYLOAD',
+      'At least one of name, stock or price must be provided',
       400
     );
     return;
@@ -270,12 +250,7 @@ router.put("/products/:id", async (req: Request, res: Response) => {
   if (stock != null) {
     const stockValidation = validateStock(stock);
     if (!stockValidation.valid) {
-      createErrorResponse(
-        res,
-        stockValidation.error!.code,
-        stockValidation.error!.message,
-        400
-      );
+      createErrorResponse(res, stockValidation.error!.code, stockValidation.error!.message, 400);
       return;
     }
     updates.stock = stockValidation.value;
@@ -284,12 +259,7 @@ router.put("/products/:id", async (req: Request, res: Response) => {
   if (price != null) {
     const priceValidation = validatePrice(price);
     if (!priceValidation.valid) {
-      createErrorResponse(
-        res,
-        priceValidation.error!.code,
-        priceValidation.error!.message,
-        400
-      );
+      createErrorResponse(res, priceValidation.error!.code, priceValidation.error!.message, 400);
       return;
     }
     updates.price = priceValidation.value;
@@ -299,23 +269,18 @@ router.put("/products/:id", async (req: Request, res: Response) => {
     const updated = await updateProduct(req.params.id, updates);
     res.json(updated);
   } catch (error: any) {
-    if (error.code === "PRODUCT_NOT_FOUND") {
-      createErrorResponse(res, "PRODUCT_NOT_FOUND", error.message, 404);
+    if (error.code === 'PRODUCT_NOT_FOUND') {
+      createErrorResponse(res, 'PRODUCT_NOT_FOUND', error.message, 404);
       return;
     }
 
-    if (error.code === "INVALID_STOCK" || error.code === "INVALID_PRICE") {
+    if (error.code === 'INVALID_STOCK' || error.code === 'INVALID_PRICE') {
       createErrorResponse(res, error.code, error.message, 400);
       return;
     }
 
-    console.error("Error while updating product:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while updating product",
-      500
-    );
+    console.error('Error while updating product:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while updating product', 500);
   }
 });
 
@@ -339,26 +304,19 @@ router.put("/products/:id", async (req: Request, res: Response) => {
  *       404:
  *         description: Product not found
  */
-router.delete("/products/:id", async (req: Request, res: Response) => {
+router.delete('/products/:id', async (req: Request, res: Response) => {
   try {
     await deleteProduct(req.params.id);
     res.status(204).send();
   } catch (error: any) {
-    if (error.code === "PRODUCT_NOT_FOUND") {
-      createErrorResponse(res, "PRODUCT_NOT_FOUND", error.message, 404);
+    if (error.code === 'PRODUCT_NOT_FOUND') {
+      createErrorResponse(res, 'PRODUCT_NOT_FOUND', error.message, 404);
       return;
     }
 
-    console.error("Error while deleting product:", error);
-    createErrorResponse(
-      res,
-      "INTERNAL_ERROR",
-      "Unexpected error while deleting product",
-      500
-    );
+    console.error('Error while deleting product:', error);
+    createErrorResponse(res, 'INTERNAL_ERROR', 'Unexpected error while deleting product', 500);
   }
 });
 
 export default router;
-
-

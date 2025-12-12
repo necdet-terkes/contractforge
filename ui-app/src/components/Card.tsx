@@ -1,8 +1,8 @@
 // Reusable Card component with consistent styling and dark mode support
 
-import React from "react";
-import { useTheme } from "../contexts/ThemeContext";
-import { getColors, spacing } from "../styles";
+import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
+import { getColors, spacing } from '../styles';
 
 interface CardProps {
   children: React.ReactNode;
@@ -12,13 +12,7 @@ interface CardProps {
   style?: React.CSSProperties;
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
-  title,
-  description,
-  className,
-  style
-}) => {
+export const Card: React.FC<CardProps> = ({ children, title, description, className, style }) => {
   const { theme } = useTheme();
   const colors = getColors(theme);
 
@@ -27,24 +21,22 @@ export const Card: React.FC<CardProps> = ({
       className={className}
       style={{
         backgroundColor: colors.background.primary,
-        borderRadius: "8px",
+        borderRadius: '8px',
         padding: spacing.xl,
-        boxShadow: theme === "dark" 
-          ? "0 2px 8px rgba(0,0,0,0.3)" 
-          : "0 2px 4px rgba(0,0,0,0.08)",
-        border: "1px solid " + colors.border.light,
-        transition: "all 0.2s ease",
-        ...style
+        boxShadow: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.08)',
+        border: '1px solid ' + colors.border.light,
+        transition: 'all 0.2s ease',
+        ...style,
       }}
     >
       {title && (
-        <div style={{ marginBottom: description ? "0.5rem" : spacing.lg }}>
+        <div style={{ marginBottom: description ? '0.5rem' : spacing.lg }}>
           <h3
             style={{
               margin: 0,
-              fontSize: "1.25rem",
+              fontSize: '1.25rem',
               fontWeight: 600,
-              color: colors.text.primary
+              color: colors.text.primary,
             }}
           >
             {title}
@@ -52,9 +44,9 @@ export const Card: React.FC<CardProps> = ({
           {description && (
             <p
               style={{
-                margin: "0.25rem 0 0 0",
-                fontSize: "0.9rem",
-                color: colors.text.secondary
+                margin: '0.25rem 0 0 0',
+                fontSize: '0.9rem',
+                color: colors.text.secondary,
               }}
             >
               {description}
@@ -66,4 +58,3 @@ export const Card: React.FC<CardProps> = ({
     </div>
   );
 };
-

@@ -39,3 +39,4 @@ jobs:
 
       - name: UI tests
         run: npm run test:ui --if-present
+

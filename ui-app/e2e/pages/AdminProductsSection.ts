@@ -76,16 +76,23 @@ export class AdminProductsSection extends BasePage {
     // Get current product to preserve unchanged values
     const currentProduct = await this.getProduct(productId);
 
-    // Click and wait for first dialog (name)
-    await Promise.all([
-      editButton.click(),
-      this.page.waitForEvent('dialog', { timeout: 10000 }).then(async (dialog) => {
-        await dialog.accept(updates.name || dialog.defaultValue() || currentProduct?.name || '');
-      }),
-    ]);
+    // Set up dialog listeners BEFORE clicking the button
+    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
-    // Wait for second dialog (stock) - Admin always asks
-    const dialog2 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Click the edit button
+    await editButton.click();
+
+    // Handle first dialog (name)
+    const dialog1 = await dialog1Promise;
+    await dialog1.accept(updates.name || dialog1.defaultValue() || currentProduct?.name || '');
+
+    // Small delay to allow JavaScript to process first dialog
+    await this.page.waitForTimeout(100);
+
+    // Handle second dialog (stock)
+    const dialog2 = await dialog2Promise;
     await dialog2.accept(
       String(
         updates.stock !== undefined
@@ -94,8 +101,11 @@ export class AdminProductsSection extends BasePage {
       )
     );
 
-    // Wait for third dialog (price) - Admin always asks
-    const dialog3 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    // Small delay to allow JavaScript to process second dialog
+    await this.page.waitForTimeout(100);
+
+    // Handle third dialog (price)
+    const dialog3 = await dialog3Promise;
     await dialog3.accept(
       String(
         updates.price !== undefined

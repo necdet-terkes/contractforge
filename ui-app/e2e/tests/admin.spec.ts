@@ -9,6 +9,8 @@ import { test, expect } from '@playwright/test';
 import { Header } from '../pages/Header';
 import { AdminPage } from '../pages/AdminPage';
 import { generateUniqueId } from '../fixtures/testData';
+import type { Product } from '../pages/AdminProductsSection';
+import type { PricingRule } from '../pages/AdminPricingRulesSection';
 
 test.describe('Admin CRUD Operations', () => {
   let header: Header;
@@ -135,15 +137,33 @@ test.describe('Admin CRUD Operations', () => {
 
       await adminPage.productsSection.createProduct(product);
 
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the product row to appear in the table
+      // Retry checking for the product to appear (with timeout)
+      let createdProduct: Product | null = null;
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(300);
+        createdProduct = await adminPage.productsSection.getProduct(productId);
+        if (createdProduct) break;
+      }
+
       // Verify product appears in list (real API persists state)
-      const createdProduct = await adminPage.productsSection.getProduct(productId);
+      // TypeScript type narrowing: use early return pattern
+      if (!createdProduct) {
+        throw new Error('Product was not created');
+      }
+
       expect(createdProduct).not.toBeNull();
-      expect(createdProduct?.name).toBe(product.name);
-      expect(createdProduct?.stock).toBe(product.stock);
-      expect(createdProduct?.price).toBe(product.price);
+      expect(createdProduct.name).toBe(product.name);
+      expect(createdProduct.stock).toBe(product.stock);
+      expect(createdProduct.price).toBe(product.price);
 
       // Cleanup
       await adminPage.productsSection.deleteProduct(productId);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
     });
 
     test('update product', async ({ page }) => {
@@ -224,15 +244,33 @@ test.describe('Admin CRUD Operations', () => {
 
       await adminPage.pricingRulesSection.createRule(rule);
 
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the rule row to appear in the table
+      // Retry checking for the rule to appear (with timeout)
+      let createdRule: PricingRule | null = null;
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(300);
+        createdRule = await adminPage.pricingRulesSection.getRule(ruleId);
+        if (createdRule) break;
+      }
+
       // Verify rule appears in list (real API persists state)
-      const createdRule = await adminPage.pricingRulesSection.getRule(ruleId);
+      // TypeScript type narrowing: check first, then use
       expect(createdRule).not.toBeNull();
-      expect(createdRule?.loyaltyTier).toBe(rule.loyaltyTier);
-      expect(createdRule?.rate).toBe(rule.rate);
-      expect(createdRule?.active).toBe(rule.active);
+      if (!createdRule) {
+        throw new Error('Rule was not created');
+      }
+      // After the if check, TypeScript knows createdRule is not null
+      expect(createdRule.loyaltyTier).toBe(rule.loyaltyTier);
+      expect(createdRule.rate).toBe(rule.rate);
+      expect(createdRule.active).toBe(rule.active);
 
       // Cleanup
       await adminPage.pricingRulesSection.deleteRule(ruleId);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
     });
 
     test('update pricing rule', async ({ page }) => {

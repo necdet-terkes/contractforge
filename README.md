@@ -197,7 +197,7 @@ Notes:
 
 - GitHub Actions workflow `.github/workflows/ci.yml`
 - Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests → Pact Broker → consumer pacts → provider verification → install Playwright chromium → UI tests
+- Steps: npm ci → typecheck → lint → unit tests → install Playwright chromium → UI tests → Pact Broker → consumer pacts → provider verification
 
 ### Contract Testing (Pact)
 
@@ -402,10 +402,10 @@ Pact Broker can be run with Docker:
 
 ```bash
 # Start Pact Broker
-npm run pact:broker:up
+npm run pact-broker:up
 
 # Stop Pact Broker
-npm run pact:broker:down
+npm run pact-broker:down
 ```
 
 ## 📄 License

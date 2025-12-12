@@ -55,21 +55,25 @@ export class AdminUsersSection extends BasePage {
 
   async updateUser(userId: string, updates: { name?: string; loyaltyTier?: User['loyaltyTier'] }) {
     // Admin uses window.prompt for updates - dialogs appear sequentially
+    // Admin ALWAYS asks for both name and loyaltyTier (see AdminView.tsx handleUpdateUser)
     const editButton = this.page.getByTestId(`user-edit-${userId}`);
 
-    // Click and wait for first dialog
+    // Get current user to preserve unchanged values
+    const currentUser = await this.getUser(userId);
+
+    // Click and wait for first dialog (name) - Admin always asks
     await Promise.all([
       editButton.click(),
       this.page.waitForEvent('dialog', { timeout: 10000 }).then(async (dialog) => {
-        await dialog.accept(updates.name || dialog.defaultValue() || '');
+        await dialog.accept(updates.name || dialog.defaultValue() || currentUser?.name || '');
       }),
     ]);
 
-    // Wait for second dialog if loyaltyTier is provided
-    if (updates.loyaltyTier !== undefined) {
-      const dialog2 = await this.page.waitForEvent('dialog', { timeout: 10000 });
-      await dialog2.accept(updates.loyaltyTier || dialog2.defaultValue() || '');
-    }
+    // Wait for second dialog (loyaltyTier) - Admin always asks
+    const dialog2 = await this.page.waitForEvent('dialog', { timeout: 10000 });
+    await dialog2.accept(
+      updates.loyaltyTier || dialog2.defaultValue() || currentUser?.loyaltyTier || ''
+    );
 
     await this.page.waitForLoadState('networkidle');
   }

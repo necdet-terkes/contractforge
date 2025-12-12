@@ -30,7 +30,7 @@
     "dev:pricing": "npm run dev --workspace pricing-api",
     "dev:ui": "npm run dev --workspace ui-app",
     "dev:all": "concurrently -n orchestrator,inventory,user,pricing,ui \"npm run dev:orchestrator\" \"npm run dev:inventory\" \"npm run dev:user\" \"npm run dev:pricing\" \"npm run dev:ui\"",
-    "dev:mock:all": "npm run pacts:pull && npm run mocks:generate && concurrently -n mocks,orchestrator,ui \"npm run mocks:start\" \"cross-env MOCK_MODE=true npm run dev:orchestrator\" \"cross-env VITE_MOCK_MODE=true npm run dev:ui\"",
+    "dev:mock:all": "npm run pacts:pull && npm run mocks:generate && concurrently -n mocks,orchestrator,ui \"npm run mocks:start\" \"cross-env MOCK_MODE=true npm run dev:orchestrator\" \"cross-env VITE_MOCK_MODE=true npm run dev --workspace ui-app\"",
     "pact:broker:up": "docker-compose up -d",
     "pact:broker:down": "docker-compose down",
     "pact:broker:health": "wait-on http://localhost:9292/health || echo 'Broker not ready'",

@@ -6,7 +6,7 @@ import { config } from "./config";
 import catalogRouter from "./routes/catalog";
 import checkoutRouter from "./routes/checkout";
 
-const app = express();
+export const app = express();
 
 // CORS for local UI (Vite)
 app.use(
@@ -45,7 +45,9 @@ app.get("/health", (_req: Request, res: Response) => {
 app.use(catalogRouter);
 app.use(checkoutRouter);
 
-app.listen(config.port, () => {
-  console.log(`Orchestrator API listening on port ${config.port}`);
-  console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(config.port, () => {
+    console.log(`Orchestrator API listening on port ${config.port}`);
+    console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
+  });
+}

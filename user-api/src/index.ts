@@ -7,7 +7,7 @@ import { swaggerSpec } from "./swagger";
 import { config } from "./config";
 import usersRouter from "./routes/users";
 
-const app = express();
+export const app = express();
 
 app.use(
   cors({
@@ -43,7 +43,9 @@ app.get("/health", (_req: Request, res: Response) => {
 
 app.use(usersRouter);
 
-app.listen(config.port, () => {
-  console.log(`User API listening on port ${config.port}`);
-  console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(config.port, () => {
+    console.log(`User API listening on port ${config.port}`);
+    console.log(`Swagger docs available at http://localhost:${config.port}/docs`);
+  });
+}

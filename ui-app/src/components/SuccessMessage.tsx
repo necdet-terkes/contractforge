@@ -30,3 +30,4 @@ export const SuccessMessage: React.FC<SuccessMessageProps> = ({ message }) => {
     </div>
   );
 };
+

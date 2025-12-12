@@ -152,6 +152,30 @@ npm run start:user
 npm run start:pricing
 ```
 
+## ✅ Testing
+
+Standardized tooling is in place across the monorepo.
+
+- **Root scripts**
+  - `npm run test:unit` — runs all Jest tests across workspaces
+  - `npm run test:ui` — runs Playwright tests (ui-app)
+  - `npm run test:all` — runs unit + UI tests together
+
+- **Per-service Jest** (API services)
+  - `npm test --workspace orchestrator-api`
+  - `npm test --workspace inventory-api`
+  - `npm test --workspace user-api`
+  - `npm test --workspace pricing-api`
+
+- **Playwright (UI)**
+  - `npm test --workspace ui-app`
+  - Config: `ui-app/playwright.config.ts`
+  - Example: `ui-app/tests/example.spec.ts`
+
+Notes:
+- Jest base config lives at `jest.base.config.ts`.
+- Services export their Express `app` for supertest; servers only listen when `NODE_ENV !== "test"`.
+
 ## 📚 API Documentation
 
 Each service provides Swagger documentation:
@@ -306,3 +330,4 @@ For questions or issues, please refer to the API documentation or check the Swag
 ---
 
 **Note**: This is a POC demonstrating microservices architecture, contract-driven development, and modern UI patterns. It uses in-memory data stores and is not intended for production use.
+

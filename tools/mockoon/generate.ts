@@ -151,6 +151,10 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
 
   routes.push(...Array.from(routeMap.values()));
 
+  // Add default CRUD routes for admin functionality (POST, PUT, DELETE)
+  // These are not in Pact contracts but needed for UI admin operations
+  addDefaultCRUDRoutes(provider, routes);
+
   return {
     uuid: uuidv4(),
     lastMigration: 29,
@@ -174,6 +178,206 @@ function generateEnvironmentForProvider(provider: string, pact: PactContract): M
     ],
     cors: true,
   };
+}
+
+function addDefaultCRUDRoutes(provider: string, routes: MockoonRoute[]): void {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With',
+    'Content-Type': 'application/json',
+  };
+
+  if (provider === 'user-api') {
+    // POST /users - Create user
+    if (!routes.some((r) => r.method === 'POST' && r.endpoint === '/users')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'POST',
+        endpoint: '/users',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 201,
+            label: 'Create user',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'u-new',
+              name: 'New User',
+              loyaltyTier: 'BRONZE',
+            }),
+          },
+        ],
+      });
+    }
+
+    // PUT /users/{id} - Update user
+    if (!routes.some((r) => r.method === 'PUT' && r.endpoint === '/users/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'PUT',
+        endpoint: '/users/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 200,
+            label: 'Update user',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'u-updated',
+              name: 'Updated User',
+              loyaltyTier: 'SILVER',
+            }),
+          },
+        ],
+      });
+    }
+
+    // DELETE /users/{id} - Delete user
+    if (!routes.some((r) => r.method === 'DELETE' && r.endpoint === '/users/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'DELETE',
+        endpoint: '/users/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 204,
+            label: 'Delete user',
+            headers: corsHeaders,
+          },
+        ],
+      });
+    }
+  } else if (provider === 'inventory-api') {
+    // POST /products - Create product
+    if (!routes.some((r) => r.method === 'POST' && r.endpoint === '/products')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'POST',
+        endpoint: '/products',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 201,
+            label: 'Create product',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'p-new',
+              name: 'New Product',
+              stock: 0,
+              price: 0,
+            }),
+          },
+        ],
+      });
+    }
+
+    // PUT /products/{id} - Update product
+    if (!routes.some((r) => r.method === 'PUT' && r.endpoint === '/products/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'PUT',
+        endpoint: '/products/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 200,
+            label: 'Update product',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'p-updated',
+              name: 'Updated Product',
+              stock: 10,
+              price: 50,
+            }),
+          },
+        ],
+      });
+    }
+
+    // DELETE /products/{id} - Delete product
+    if (!routes.some((r) => r.method === 'DELETE' && r.endpoint === '/products/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'DELETE',
+        endpoint: '/products/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 204,
+            label: 'Delete product',
+            headers: corsHeaders,
+          },
+        ],
+      });
+    }
+  } else if (provider === 'pricing-api') {
+    // POST /pricing/rules - Create discount rule
+    if (!routes.some((r) => r.method === 'POST' && r.endpoint === '/pricing/rules')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'POST',
+        endpoint: '/pricing/rules',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 201,
+            label: 'Create discount rule',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'rule-new',
+              loyaltyTier: 'BRONZE',
+              rate: 0.1,
+              description: 'New discount rule',
+              active: true,
+            }),
+          },
+        ],
+      });
+    }
+
+    // PUT /pricing/rules/{id} - Update discount rule
+    if (!routes.some((r) => r.method === 'PUT' && r.endpoint === '/pricing/rules/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'PUT',
+        endpoint: '/pricing/rules/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 200,
+            label: 'Update discount rule',
+            headers: corsHeaders,
+            body: JSON.stringify({
+              id: 'rule-updated',
+              loyaltyTier: 'SILVER',
+              rate: 0.15,
+              description: 'Updated discount rule',
+              active: true,
+            }),
+          },
+        ],
+      });
+    }
+
+    // DELETE /pricing/rules/{id} - Delete discount rule
+    if (!routes.some((r) => r.method === 'DELETE' && r.endpoint === '/pricing/rules/{id}')) {
+      routes.push({
+        uuid: uuidv4(),
+        method: 'DELETE',
+        endpoint: '/pricing/rules/{id}',
+        responses: [
+          {
+            uuid: uuidv4(),
+            statusCode: 204,
+            label: 'Delete discount rule',
+            headers: corsHeaders,
+          },
+        ],
+      });
+    }
+  }
 }
 
 async function main(): Promise<void> {

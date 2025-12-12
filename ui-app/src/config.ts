@@ -2,6 +2,12 @@
 
 const isMockMode = import.meta.env.VITE_MOCK_MODE === 'true';
 
+// Debug: Log mock mode status (only in development)
+if (import.meta.env.DEV) {
+  console.log('[Config] VITE_MOCK_MODE:', import.meta.env.VITE_MOCK_MODE);
+  console.log('[Config] isMockMode:', isMockMode);
+}
+
 // Mock ports (Mockoon)
 const MOCK_PORTS = {
   orchestrator: 4000, // Orchestrator still runs on 4000, but uses mock upstreams
@@ -35,6 +41,13 @@ export const INVENTORY_API_BASE_URL =
 export const USER_API_BASE_URL = import.meta.env.VITE_USER_API_URL || getApiUrl('user');
 
 export const PRICING_API_BASE_URL = import.meta.env.VITE_PRICING_API_URL || getApiUrl('pricing');
+
+// Debug: Log API URLs (only in development)
+if (import.meta.env.DEV) {
+  console.log('[Config] INVENTORY_API_BASE_URL:', INVENTORY_API_BASE_URL);
+  console.log('[Config] USER_API_BASE_URL:', USER_API_BASE_URL);
+  console.log('[Config] PRICING_API_BASE_URL:', PRICING_API_BASE_URL);
+}
 
 export const IS_MOCK_MODE = isMockMode;
 

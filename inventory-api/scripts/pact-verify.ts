@@ -6,7 +6,20 @@ import { __resetProducts, createProduct, deleteProduct, findProductById } from '
 const brokerBaseUrl = process.env.PACT_BROKER_BASE_URL || 'http://localhost:9292';
 const brokerUsername = process.env.PACT_BROKER_USERNAME || 'pact';
 const brokerPassword = process.env.PACT_BROKER_PASSWORD || 'pact';
-const providerVersion = process.env.PACT_PROVIDER_VERSION || process.env.GIT_COMMIT || 'local-dev';
+
+// Generate unique version for local development to avoid broker conflicts
+const getProviderVersion = (): string => {
+  if (process.env.PACT_PROVIDER_VERSION) {
+    return process.env.PACT_PROVIDER_VERSION;
+  }
+  if (process.env.GIT_COMMIT) {
+    return process.env.GIT_COMMIT;
+  }
+  // Local development: use timestamp to ensure unique versions
+  return `local-dev-${Date.now()}`;
+};
+
+const providerVersion = getProviderVersion();
 const providerBranch = process.env.PACT_PROVIDER_BRANCH || process.env.GIT_BRANCH || 'local';
 
 let server: http.Server | null = null;

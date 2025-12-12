@@ -4,6 +4,10 @@ import { initialProducts, Product } from './products';
 
 let products: Product[] = [...initialProducts];
 
+export function __resetProducts(seed: Product[] = initialProducts) {
+  products = [...seed];
+}
+
 export async function listProducts(): Promise<Product[]> {
   // In a real system this would be a DB SELECT
   return products;

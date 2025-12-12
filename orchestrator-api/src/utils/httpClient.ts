@@ -14,7 +14,7 @@ export interface ApiError extends Error {
 /**
  * Creates a standardized error from axios errors
  */
-function createApiError(error: any, defaultMessage: string, defaultCode: string): ApiError {
+export function createApiError(error: any, defaultMessage: string, defaultCode: string): ApiError {
   if (error.response) {
     const status = error.response.status;
     const message = error.response.data?.message || error.message || defaultMessage;

@@ -4,6 +4,10 @@ import { initialUsers, LoyaltyTier, User } from './users';
 
 let users: User[] = [...initialUsers];
 
+export function __resetUsers(seed: User[] = initialUsers) {
+  users = [...seed];
+}
+
 export async function listUsers(): Promise<User[]> {
   // In a real system this would be a DB SELECT
   return users;

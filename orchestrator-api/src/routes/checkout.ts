@@ -5,6 +5,7 @@ import { fetchProductById } from '../inventoryClient';
 import { fetchUserById } from '../userClient';
 import { fetchPricingQuote } from '../pricingClient';
 import { createErrorResponse } from '../../../types/utils/errors';
+import { buildCheckoutPreview, mapCheckoutError } from '../checkoutLogic';
 
 const router = Router();
 
@@ -133,46 +134,16 @@ router.get('/checkout/preview', async (req: Request, res: Response): Promise<voi
       loyaltyTier: user.loyaltyTier,
     });
 
-    const preview = {
-      product: {
-        id: product.id,
-        name: product.name,
-        stock: product.stock,
-        basePrice: product.price,
-      },
-      user: {
-        id: user.id,
-        name: user.name,
-        loyaltyTier: user.loyaltyTier,
-      },
+    const preview = buildCheckoutPreview({
+      product,
+      user,
       pricing,
-    };
+    });
 
     res.json(preview);
   } catch (error: any) {
-    if (error.code === 'PRODUCT_NOT_FOUND') {
-      createErrorResponse(res, 'PRODUCT_NOT_FOUND', error.message, 404);
-      return;
-    }
-
-    if (error.code === 'USER_NOT_FOUND') {
-      createErrorResponse(res, 'USER_NOT_FOUND', error.message, 404);
-      return;
-    }
-
-    if (error.code === 'PRICING_API_ERROR') {
-      createErrorResponse(res, 'PRICING_API_ERROR', error.message, 502);
-      return;
-    }
-
-    console.error('Error in checkout preview:', error.message);
-
-    createErrorResponse(
-      res,
-      'UPSTREAM_UNAVAILABLE',
-      'Could not retrieve data from one or more upstream services',
-      502
-    );
+    const mapped = mapCheckoutError(error);
+    createErrorResponse(res, mapped.code, mapped.message, mapped.status);
   }
 });
 

@@ -183,4 +183,184 @@ describe('Pact with Inventory API', () => {
       await provider.finalize();
     });
   });
+
+  describe('POST /products', () => {
+    it('creates a new product', async () => {
+      const provider = new Pact({
+        consumer: 'orchestrator-api',
+        provider: 'inventory-api',
+        port: 0,
+        log: process.env.PACT_LOG_LEVEL || 'info',
+        dir: './pacts',
+        logLevel: 'info',
+      });
+
+      await provider.setup();
+
+      await provider.addInteraction({
+        state: 'product does not exist',
+        uponReceiving: 'a request to create a product',
+        withRequest: {
+          method: 'POST',
+          path: '/products',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: {
+            id: like('p3'),
+            name: like('Tablet'),
+            stock: like(10),
+            price: like(300),
+          },
+        },
+        willRespondWith: {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: {
+            id: like('p3'),
+            name: like('Tablet'),
+            stock: like(10),
+            price: like(300),
+          },
+        },
+      });
+
+      const client = new HttpClient({
+        baseURL: provider.mockService.baseUrl,
+        serviceName: 'inventory-api',
+      });
+
+      const product = await client.post<{ id: string; name: string; stock: number; price: number }>(
+        '/products',
+        {
+          id: 'p3',
+          name: 'Tablet',
+          stock: 10,
+          price: 300,
+        }
+      );
+
+      expect(product.id).toBeTruthy();
+      expect(product.name).toBeTruthy();
+      expect(typeof product.stock).toBe('number');
+      expect(typeof product.price).toBe('number');
+
+      await provider.verify();
+      await provider.finalize();
+    });
+  });
+
+  describe('PUT /products/:id', () => {
+    it('updates an existing product', async () => {
+      const provider = new Pact({
+        consumer: 'orchestrator-api',
+        provider: 'inventory-api',
+        port: 0,
+        log: process.env.PACT_LOG_LEVEL || 'info',
+        dir: './pacts',
+        logLevel: 'info',
+      });
+
+      await provider.setup();
+
+      const productId = 'p1';
+
+      await provider.addInteraction({
+        state: 'product exists',
+        uponReceiving: 'a request to update a product',
+        withRequest: {
+          method: 'PUT',
+          path: `/products/${productId}`,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: {
+            name: like('Coffee Machine Pro'),
+            stock: like(5),
+            price: like(120),
+          },
+        },
+        willRespondWith: {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: {
+            id: like(productId),
+            name: like('Coffee Machine Pro'),
+            stock: like(5),
+            price: like(120),
+          },
+        },
+      });
+
+      const client = new HttpClient({
+        baseURL: provider.mockService.baseUrl,
+        serviceName: 'inventory-api',
+      });
+
+      const product = await client.put<{ id: string; name: string; stock: number; price: number }>(
+        `/products/${productId}`,
+        {
+          name: 'Coffee Machine Pro',
+          stock: 5,
+          price: 120,
+        }
+      );
+
+      expect(product.id).toBe(productId);
+      expect(product.name).toBeTruthy();
+      expect(typeof product.stock).toBe('number');
+      expect(typeof product.price).toBe('number');
+
+      await provider.verify();
+      await provider.finalize();
+    });
+  });
+
+  describe('DELETE /products/:id', () => {
+    it('deletes an existing product', async () => {
+      const provider = new Pact({
+        consumer: 'orchestrator-api',
+        provider: 'inventory-api',
+        port: 0,
+        log: process.env.PACT_LOG_LEVEL || 'info',
+        dir: './pacts',
+        logLevel: 'info',
+      });
+
+      await provider.setup();
+
+      const productId = 'p1';
+
+      await provider.addInteraction({
+        state: 'product exists',
+        uponReceiving: 'a request to delete a product',
+        withRequest: {
+          method: 'DELETE',
+          path: `/products/${productId}`,
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+        willRespondWith: {
+          status: 204,
+        },
+      });
+
+      const client = new HttpClient({
+        baseURL: provider.mockService.baseUrl,
+        serviceName: 'inventory-api',
+      });
+
+      await client.delete(`/products/${productId}`);
+
+      await provider.verify();
+      await provider.finalize();
+    });
+  });
 });

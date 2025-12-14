@@ -16,6 +16,7 @@
     "test:e2e:ui": "cross-env MOCK_MODE=true npm run test:e2e:ui --workspace ui-app --if-present",
     "test:e2e:headed": "cross-env MOCK_MODE=true npm run test:e2e:headed --workspace ui-app --if-present",
     "test:all": "concurrently \"npm run test:unit\" \"npm run test:e2e\"",
+    "test:report": "tsx tools/test-reporting/aggregate-reports.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-path .eslintignore",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --check .",

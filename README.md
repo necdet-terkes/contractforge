@@ -171,6 +171,7 @@ Standardized tooling is in place across the monorepo.
   - `npm run test:coverage` — runs Jest tests with coverage report
   - `npm run test:e2e` — runs Playwright E2E tests (ui-app)
   - `npm run test:all` — runs unit + E2E tests together
+  - `npm run test:report` — generates combined test report (Jest + Playwright + Coverage)
 - `npm run check` — typecheck + lint + unit tests
 
 - **Per-service Jest** (API services)
@@ -205,7 +206,13 @@ Notes:
 
 - GitHub Actions workflow `.github/workflows/ci.yml`
 - Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests → Pact Broker → consumer pacts → provider verification → generate mocks → start mocks → UI tests (against mocks)
+- Steps: npm ci → typecheck → lint → unit tests (with coverage) → Pact Broker → consumer pacts → provider verification → generate mocks → start mocks → UI tests (against mocks) → aggregate test reports
+- **Test Reporting**:
+  - Combined test summary (Jest + Playwright + Pact) via `npm run test:report`
+  - Coverage reports (HTML + JSON) from all workspaces
+  - GitHub Actions summary with test results and coverage metrics
+  - Artifacts uploaded for test results, coverage, and Playwright reports
+  - JUnit XML reports from Playwright for CI integration
 
 ### Contract Testing (Pact)
 
@@ -508,11 +515,15 @@ MOCK_MODE=false VITE_MOCK_MODE=false npx playwright test --project=real-mode
 
 **3. Admin CRUD** (`admin.spec.ts`) - **Runs in REAL mode**
 
-- **Users**: Create, update, delete operations
-- **Products**: Create, update, delete operations
-- **Pricing Rules**: Create, update, delete operations
+- **Users**: Create, update, delete operations using form-based inline edit UI
+- **Products**: Create, update, delete operations using form-based inline edit UI
+- **Pricing Rules**: Create, update, delete operations using form-based inline edit UI
 - All operations use unique IDs per test run
 - Tests clean up created entities automatically
+- **Admin → Checkout Integration Tests**: Verifies that CRUD operations in admin panel reflect in checkout page:
+  - Created users/products/rules appear in checkout
+  - Updated users/products/rules reflect in checkout
+  - Deleted users/products/rules disappear from checkout
 - **Note**: These tests require real APIs (not mocks) because Mockoon is static and doesn't persist state changes
 
 **4. End-to-End Pricing** (`e2e-pricing.spec.ts`)
@@ -520,6 +531,13 @@ MOCK_MODE=false VITE_MOCK_MODE=false npx playwright test --project=real-mode
 - Creating a pricing rule affects checkout discounts
 - Updating a pricing rule rate changes checkout discounts
 - Verifies full flow from admin to checkout
+
+**5. Admin CRUD Effects on Checkout** (`admin.spec.ts` - Integration tests)
+
+- User CRUD: Created/updated/deleted users appear/disappear in checkout user selection
+- Product CRUD: Created/updated/deleted products appear/disappear in checkout catalog
+- Pricing Rule CRUD: Created/updated/deleted rules affect discount calculations in checkout
+- Tests verify end-to-end data flow from admin operations to checkout display
 
 #### CI Integration
 
@@ -539,7 +557,21 @@ E2E tests run automatically in CI in two phases:
 2. **Real mode tests run** against real APIs
 3. **Real APIs are stopped**
 
-**Artifacts are uploaded** on failure (traces, screenshots, reports)
+**Test Report Aggregation**
+
+After all tests complete:
+
+1. **Combined test report** is generated via `npm run test:report`
+2. **Test summary** (JSON + Markdown) is created with:
+   - Jest test suites and coverage metrics
+   - Playwright test results (passed/failed/skipped)
+   - Overall test statistics and pass rate
+3. **GitHub Actions summary** is written to `$GITHUB_STEP_SUMMARY`
+4. **Artifacts are uploaded**:
+   - Test summary (JSON + Markdown)
+   - Coverage reports (HTML + JSON from all workspaces)
+   - Playwright HTML reports
+   - Playwright traces (on failure)
 
 The CI workflow ensures:
 
@@ -547,6 +579,7 @@ The CI workflow ensures:
 - Real mode tests run with `MOCK_MODE=false` (no mock banner)
 - All tests are deterministic and isolated
 - Test results and traces are available for debugging
+- Combined test reports provide comprehensive view of all test results
 
 #### Troubleshooting
 
@@ -568,11 +601,12 @@ The CI workflow ensures:
 - Check network tab for slow API calls
 - Verify mocks are responding quickly
 
-**Dialog prompts in admin tests:**
+**Admin edit operations:**
 
-- Admin uses `window.prompt()` for updates
-- Playwright handles these automatically via dialog handlers
-- If tests fail on updates, check dialog handling in page objects
+- Admin uses form-based inline edit UI (no dialogs)
+- Click "Edit" button to enter edit mode, modify fields inline, then click "Save" or "Cancel"
+- Page objects handle form interactions directly
+- If tests fail on updates, check form field selectors and save/cancel button interactions
 
 #### Test Data
 
@@ -606,9 +640,16 @@ The Admin panel also includes quick links to all API documentation.
 ### Admin Panel
 
 - **Users Management**: Create, update, delete users with loyalty tiers
+  - **Inline Edit UI**: Click "Edit" to modify user fields directly in the table row
+  - Form-based editing with Save/Cancel buttons
 - **Products Management**: Manage product catalog, stock, and pricing
+  - **Inline Edit UI**: Click "Edit" to modify product fields directly in the table row
+  - Form-based editing with Save/Cancel buttons
 - **Pricing Rules**: Configure discount rules for loyalty tiers
+  - **Inline Edit UI**: Click "Edit" to modify rule fields directly in the table row
+  - Form-based editing with Save/Cancel buttons
 - **API Documentation Links**: Quick access to Swagger docs for all services
+- **Real-time Integration**: Changes in admin panel immediately reflect in checkout preview
 
 ### Checkout Preview
 
@@ -689,6 +730,18 @@ Services can be configured via environment variables:
   ```bash
   npm run test:unit
   ```
+- **Run tests with coverage:**
+  ```bash
+  npm run test:coverage
+  ```
+- **Generate combined test report:**
+  ```bash
+  npm run test:report
+  ```
+  This generates:
+  - `test-results/test-summary.json` - Machine-readable test summary
+  - `test-results/test-summary.md` - Human-readable markdown report
+  - GitHub Actions summary (when run in CI)
 - **Per workspace unit tests (Jest):**
   ```bash
   npm test --workspace orchestrator-api
@@ -715,6 +768,22 @@ Test coverage focuses on pure logic and repositories:
 - **Contract Tests (Pact)**: Consumer-driven contracts for all API interactions (GET, POST, PUT, DELETE)
 - **E2E Tests (Playwright)**: UI tests run against Mockoon mocks generated from Pact contracts
 - **Mock System**: All UI and integration tests use contract-generated mocks, ensuring tests always match contracts
+
+### Test Reporting
+
+ContractForge includes comprehensive test reporting that aggregates results from all test frameworks:
+
+- **Jest Coverage**: Coverage reports in HTML, JSON, LCOV, and JSON-summary formats
+- **Playwright Reports**: HTML reports and JUnit XML for CI integration
+- **Combined Summary**: Single report showing:
+  - Total test counts (Jest + Playwright)
+  - Pass/fail/skip statistics
+  - Coverage metrics (lines, statements, functions, branches)
+  - Pass rate calculation
+
+**Report Location**: `test-results/test-summary.json` and `test-results/test-summary.md`
+
+**CI Integration**: Reports are automatically generated in CI and uploaded as artifacts. GitHub Actions summary is displayed in the workflow run.
 
 ## 📝 Key Features
 

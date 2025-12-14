@@ -28,8 +28,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm run test:unit
+      - name: Unit tests with coverage
+        run: npm run test:coverage
 
       - name: Start Pact Broker
         run: docker compose up -d
@@ -142,3 +142,31 @@ jobs:
           name: playwright-traces
           path: ui-app/test-results/
           retention-days: 7
+
+      - name: Aggregate test reports
+        if: always()
+        run: npm run test:report
+        continue-on-error: true
+
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary
+          path: |
+            test-results/test-summary.json
+            test-results/test-summary.md
+          retention-days: 30
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            orchestrator-api/coverage/
+            inventory-api/coverage/
+            user-api/coverage/
+            pricing-api/coverage/
+          retention-days: 30

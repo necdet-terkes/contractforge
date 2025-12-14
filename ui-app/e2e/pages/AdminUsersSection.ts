@@ -54,37 +54,38 @@ export class AdminUsersSection extends BasePage {
   }
 
   async updateUser(userId: string, updates: { name?: string; loyaltyTier?: User['loyaltyTier'] }) {
-    // Admin uses window.prompt for updates - dialogs appear sequentially
-    // Admin ALWAYS asks for both name and loyaltyTier (see AdminView.tsx handleUpdateUser)
+    // Wait for user to be visible before attempting to update
+    // This is important when navigating back from other pages
+    let currentUser: User | null = null;
+    for (let i = 0; i < 20; i++) {
+      await this.page.waitForTimeout(300);
+      currentUser = await this.getUser(userId);
+      if (currentUser) break;
+    }
+
+    if (!currentUser) {
+      throw new Error(`User ${userId} not found`);
+    }
+
+    // Click edit button to enter edit mode
     const editButton = this.page.getByTestId(`user-edit-${userId}`);
+    await editButton.click();
+    await this.page.waitForTimeout(200); // Wait for edit mode to activate
 
-    // Get current user to preserve unchanged values
-    const currentUser = await this.getUser(userId);
+    // Fill in the form fields
+    if (updates.name !== undefined) {
+      const nameInput = this.page.getByTestId(`user-edit-name-${userId}`);
+      await nameInput.fill(updates.name);
+    }
 
-    // Set up dialog listeners BEFORE clicking the button
-    // This ensures we catch both dialogs even if they appear quickly
-    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    if (updates.loyaltyTier !== undefined) {
+      const tierSelect = this.page.getByTestId(`user-edit-tier-${userId}`);
+      await tierSelect.selectOption(updates.loyaltyTier);
+    }
 
-    // Click the edit button and wait for first dialog simultaneously
-    // Use noWaitAfter to prevent click timeout when dialog opens immediately
-    const [dialog1] = await Promise.all([
-      dialog1Promise,
-      editButton.click({ noWaitAfter: true }).catch(() => {
-        // Click may fail if dialog opens immediately, but dialog promise will resolve
-      }),
-    ]);
-    await dialog1.accept(updates.name || dialog1.defaultValue() || currentUser?.name || '');
-
-    // Small delay to allow JavaScript to process first dialog and trigger second
-    await this.page.waitForTimeout(100);
-
-    // Handle second dialog (loyaltyTier)
-    const dialog2 = await dialog2Promise;
-    await dialog2.accept(
-      updates.loyaltyTier || dialog2.defaultValue() || currentUser?.loyaltyTier || ''
-    );
-
+    // Click save button
+    const saveButton = this.page.getByTestId(`user-save-${userId}`);
+    await saveButton.click();
     await this.page.waitForLoadState('networkidle');
   }
 

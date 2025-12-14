@@ -79,55 +79,52 @@ export class AdminPricingRulesSection extends BasePage {
   }
 
   async updateRule(ruleId: string, updates: Partial<PricingRule>) {
-    // Admin uses window.prompt for updates - dialogs appear sequentially
-    // Admin ALWAYS asks for all 4 fields: loyaltyTier, rate, description, active
+    // Wait for rule to be visible before attempting to update
+    // This is important when navigating back from other pages
+    let currentRule: PricingRule | null = null;
+    for (let i = 0; i < 20; i++) {
+      await this.page.waitForTimeout(300);
+      currentRule = await this.getRule(ruleId);
+      if (currentRule) break;
+    }
+
+    if (!currentRule) {
+      throw new Error(`Rule ${ruleId} not found`);
+    }
+
+    // Click edit button to enter edit mode
     const editButton = this.page.getByTestId(`rule-edit-${ruleId}`);
+    await editButton.click();
+    await this.page.waitForTimeout(200); // Wait for edit mode to activate
 
-    // Set up dialog listeners BEFORE clicking the button
-    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog4Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    // Fill in the form fields
+    if (updates.loyaltyTier !== undefined) {
+      const tierSelect = this.page.getByTestId(`rule-edit-tier-${ruleId}`);
+      await tierSelect.selectOption(updates.loyaltyTier);
+    }
 
-    // Click the edit button and wait for first dialog simultaneously
-    // Use noWaitAfter to prevent click timeout when dialog opens immediately
-    const [dialog1] = await Promise.all([
-      dialog1Promise,
-      editButton.click({ noWaitAfter: true }).catch(() => {
-        // Click may fail if dialog opens immediately, but dialog promise will resolve
-      }),
-    ]);
-    await dialog1.accept(
-      updates.loyaltyTier !== undefined ? updates.loyaltyTier : dialog1.defaultValue() || ''
-    );
+    if (updates.rate !== undefined) {
+      const rateInput = this.page.getByTestId(`rule-edit-rate-${ruleId}`);
+      await rateInput.fill(String(updates.rate));
+    }
 
-    // Small delay to allow JavaScript to process first dialog
-    await this.page.waitForTimeout(100);
+    if (updates.description !== undefined) {
+      const descriptionInput = this.page.getByTestId(`rule-edit-description-${ruleId}`);
+      await descriptionInput.fill(updates.description);
+    }
 
-    // Handle second dialog (rate)
-    const dialog2 = await dialog2Promise;
-    await dialog2.accept(
-      updates.rate !== undefined ? String(updates.rate) : dialog2.defaultValue() || ''
-    );
+    if (updates.active !== undefined) {
+      const activeCheckbox = this.page.getByTestId(`rule-edit-active-${ruleId}`);
+      if (updates.active) {
+        await activeCheckbox.check();
+      } else {
+        await activeCheckbox.uncheck();
+      }
+    }
 
-    // Small delay to allow JavaScript to process second dialog
-    await this.page.waitForTimeout(100);
-
-    // Handle third dialog (description)
-    const dialog3 = await dialog3Promise;
-    await dialog3.accept(
-      updates.description !== undefined ? updates.description : dialog3.defaultValue() || ''
-    );
-
-    // Small delay to allow JavaScript to process third dialog
-    await this.page.waitForTimeout(100);
-
-    // Handle fourth dialog (active)
-    const dialog4 = await dialog4Promise;
-    await dialog4.accept(
-      updates.active !== undefined ? String(updates.active) : dialog4.defaultValue() || ''
-    );
-
+    // Click save button
+    const saveButton = this.page.getByTestId(`rule-save-${ruleId}`);
+    await saveButton.click();
     await this.page.waitForLoadState('networkidle');
   }
 

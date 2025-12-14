@@ -30,17 +30,17 @@ const config: Config = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json', 'json-summary'],
-  // Coverage thresholds are set but not enforced in CI
-  // They serve as goals rather than hard requirements
-  // Uncomment and adjust when coverage improves
-  // coverageThreshold: {
-  //   global: {
-  //     branches: 70,
-  //     functions: 70,
-  //     lines: 70,
-  //     statements: 70,
-  //   },
-  // },
+  // Coverage thresholds set to current baseline (~30%)
+  // These will be gradually increased as coverage improves
+  // Current goal: maintain minimum coverage, target: 70%+
+  coverageThreshold: {
+    global: {
+      branches: 20,
+      functions: 40,
+      lines: 25,
+      statements: 25,
+    },
+  },
 };
 
 export default config;

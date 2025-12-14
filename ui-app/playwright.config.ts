@@ -22,7 +22,17 @@ export default defineConfig({
   // Mock mode tests can run in parallel (static mocks, no state conflicts)
   // Real mode tests can also run in parallel (each test uses unique IDs)
   workers: process.env.CI ? 2 : undefined, // 2 workers in CI, auto-detect locally
-  reporter: process.env.CI ? [['github'], ['html']] : [['html'], ['list']],
+  reporter: process.env.CI
+    ? [
+        ['github'],
+        ['html', { outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/junit.xml' }],
+      ]
+    : [
+        ['html', { outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/junit.xml' }],
+        ['list'],
+      ],
   use: {
     baseURL: 'http://localhost:5173',
     headless: true,

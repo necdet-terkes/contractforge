@@ -147,15 +147,18 @@ function parseJestResults(): Partial<TestSummary['jest']> {
       const pactDir = path.join(rootDir, workspace, 'src', '__pact__');
 
       if (fs.existsSync(testDir)) {
-        const testFiles = fs
-          .readdirSync(testDir, { recursive: true })
-          .filter((f: string) => f.endsWith('.test.ts') || f.endsWith('.spec.ts'));
+        const allFiles = fs.readdirSync(testDir, { recursive: true });
+        const testFiles = allFiles.filter(
+          (f): f is string =>
+            typeof f === 'string' && (f.endsWith('.test.ts') || f.endsWith('.spec.ts'))
+        );
         totalSuites += testFiles.length;
       }
       if (fs.existsSync(pactDir)) {
-        const pactFiles = fs
-          .readdirSync(pactDir, { recursive: true })
-          .filter((f: string) => f.endsWith('.pact.test.ts'));
+        const allFiles = fs.readdirSync(pactDir, { recursive: true });
+        const pactFiles = allFiles.filter(
+          (f): f is string => typeof f === 'string' && f.endsWith('.pact.test.ts')
+        );
         totalSuites += pactFiles.length;
       }
     }

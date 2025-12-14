@@ -312,6 +312,27 @@ Integration CI can be manually triggered via GitHub Actions UI:
 - **Required for all PRs**:
   - `integration-ci` (runs full stack validation)
 
+**Setting up Branch Protection Rules:**
+
+To ensure feature branches pass CI before merging to `main`:
+
+1. Go to **Settings** → **Branches** in your GitHub repository
+2. Click **Add rule** or edit the existing rule for `main` branch
+3. Enable **Require status checks to pass before merging**
+4. Add the following required status checks:
+   - `integration-ci` (always required)
+   - `inventory-ci` (if inventory-api changes)
+   - `user-ci` (if user-api changes)
+   - `pricing-ci` (if pricing-api changes)
+   - `orchestrator-ci` (if orchestrator-api changes)
+   - `ui-ci` (if ui-app changes)
+5. Optionally enable:
+   - **Require branches to be up to date before merging** (recommended)
+   - **Require conversation resolution before merging** (optional)
+6. Save the rule
+
+**Note:** GitHub Actions will automatically run the appropriate pipelines based on path filters. The branch protection rule ensures that these checks must pass before allowing merges to `main`.
+
 **Test Reporting**:
 
 - Coverage reports (HTML + JSON) uploaded as artifacts per pipeline

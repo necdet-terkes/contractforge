@@ -41,7 +41,7 @@ jobs:
         run: npm ci
 
       - name: Pull pacts
-        if: ${{ inputs.action == 'generate' || inputs.action == 'start' }}
+        if: inputs.action == 'generate' || inputs.action == 'start'
         run: npm run pacts:pull
         env:
           PACT_BROKER_BASE_URL: ${{ inputs.broker_url }}
@@ -49,11 +49,11 @@ jobs:
           PACT_BROKER_PASSWORD: ${{ inputs.broker_password }}
 
       - name: Generate Mockoon mocks
-        if: ${{ inputs.action == 'generate' || inputs.action == 'start' }}
+        if: inputs.action == 'generate' || inputs.action == 'start'
         run: npm run mocks:generate
 
       - name: Check if mock files exist
-        if: ${{ inputs.action == 'start' }}
+        if: inputs.action == 'start'
         id: check-mocks
         run: |
           if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
@@ -66,7 +66,7 @@ jobs:
           fi
 
       - name: Start Mockoon mocks
-        if: ${{ inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true' }}
+        if: inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true'
         run: |
           npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001 > /tmp/mockoon-inventory.log 2>&1 &
           echo $! > /tmp/mockoon-inventory.pid
@@ -77,12 +77,12 @@ jobs:
           sleep 3
 
       - name: Wait for mocks to be ready
-        if: ${{ inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true' }}
+        if: inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true'
         run: |
           timeout 30 bash -c 'until curl -f http://localhost:5001/products && curl -f http://localhost:5002/users && curl -f http://localhost:5003/pricing/rules; do sleep 2; done'
 
       - name: Stop Mockoon mocks
-        if: ${{ inputs.action == 'stop' }}
+        if: inputs.action == 'stop'
         run: |
           if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) || true; fi
           if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) || true; fi

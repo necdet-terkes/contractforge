@@ -17,16 +17,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start Pact Broker
-        if: ${{ inputs.action == 'start' }}
+        if: inputs.action == 'start'
         run: docker compose up -d
 
       - name: Wait for Pact Broker
-        if: ${{ inputs.action == 'start' }}
+        if: inputs.action == 'start'
         run: |
           timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
 
       - name: Health check Pact Broker
-        if: ${{ inputs.action == 'health' }}
+        if: inputs.action == 'health'
         run: |
           if curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; then
             echo "broker_ready=true" >> $GITHUB_OUTPUT
@@ -35,5 +35,5 @@ jobs:
           fi
 
       - name: Stop Pact Broker
-        if: ${{ inputs.action == 'stop' }}
+        if: inputs.action == 'stop'
         run: docker compose down

@@ -1,0 +1,65 @@
+name: Playwright E2E (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        description: 'Playwright project to run (mock-mode, real-mode, or all)'
+        required: true
+        type: string
+        default: 'mock-mode'
+      mock_mode:
+        description: 'Enable mock mode'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (chromium)
+        working-directory: ui-app
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: ui-app
+        run: |
+          if [ "${{ inputs.project }}" == "all" ]; then
+            npx playwright test
+          else
+            npx playwright test --project=${{ inputs.project }}
+          fi
+        env:
+          MOCK_MODE: ${{ inputs.mock_mode && 'true' || 'false' }}
+          VITE_MOCK_MODE: ${{ inputs.mock_mode && 'true' || 'false' }}
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.project }}
+          path: ui-app/playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ inputs.project }}
+          path: ui-app/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

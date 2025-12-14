@@ -1,0 +1,232 @@
+name: Integration CI
+
+on:
+  pull_request:
+    paths:
+      - 'orchestrator-api/**'
+      - 'inventory-api/**'
+      - 'user-api/**'
+      - 'pricing-api/**'
+      - 'ui-app/**'
+      - 'tools/mockoon/**'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'orchestrator-api/**'
+      - 'inventory-api/**'
+      - 'user-api/**'
+      - 'pricing-api/**'
+      - 'ui-app/**'
+      - 'tools/mockoon/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck all
+        run: npm run typecheck
+
+      - name: Lint all
+        run: npm run lint
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+  broker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start Pact Broker
+        run: docker compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+
+  pact-flow:
+    needs: broker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Pact consumer tests and publish
+        run: npm run pact:consumer:all --workspace orchestrator-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_CONSUMER_VERSION: ${{ github.sha }}
+          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
+
+      - name: Verify all provider contracts
+        run: npm run pact:verify
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_PROVIDER_VERSION: ${{ github.sha }}
+          PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
+
+  generate-mocks:
+    needs: pact-flow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Mockoon mocks from Pact contracts
+        run: npm run pacts:pull && npm run mocks:generate
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+
+  start-mocks:
+    needs: generate-mocks
+    uses: ./.github/workflows/_mockoon.yml
+    with:
+      action: 'start'
+      broker_url: http://localhost:9292
+      broker_username: pact
+      broker_password: pact
+
+  playwright-mock:
+    needs: start-mocks
+    uses: ./.github/workflows/_playwright.yml
+    with:
+      project: 'mock-mode'
+      mock_mode: true
+
+  stop-mocks:
+    needs: [playwright-mock]
+    if: always()
+    uses: ./.github/workflows/_mockoon.yml
+    with:
+      action: 'stop'
+
+  start-real-apis:
+    needs: stop-mocks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start real APIs for CRUD tests
+        run: |
+          npm run dev:inventory > /tmp/inventory-api.log 2>&1 &
+          echo $! > /tmp/inventory-api.pid
+          npm run dev:user > /tmp/user-api.log 2>&1 &
+          echo $! > /tmp/user-api.pid
+          npm run dev:pricing > /tmp/pricing-api.log 2>&1 &
+          echo $! > /tmp/pricing-api.pid
+          sleep 3
+
+      - name: Wait for real APIs to be ready
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:4001/products && curl -f http://localhost:4002/users && curl -f http://localhost:4003/pricing/rules; do sleep 2; done'
+
+  playwright-real:
+    needs: start-real-apis
+    uses: ./.github/workflows/_playwright.yml
+    with:
+      project: 'real-mode'
+      mock_mode: false
+
+  cleanup-and-report:
+    needs: [integration, playwright-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stop real APIs
+        run: |
+          if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) || true; fi
+          if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) || true; fi
+          if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) || true; fi
+
+      - name: Stop Pact Broker
+        run: docker compose down
+
+      - name: Aggregate test reports
+        run: npm run test:report
+        continue-on-error: true
+
+      - name: Upload test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary
+          path: |
+            test-results/test-summary.json
+            test-results/test-summary.md
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            orchestrator-api/coverage/
+            inventory-api/coverage/
+            user-api/coverage/
+            pricing-api/coverage/
+          retention-days: 30
+          if-no-files-found: ignore

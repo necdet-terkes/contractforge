@@ -1,0 +1,77 @@
+name: UI App CI
+
+on:
+  pull_request:
+    paths:
+      - 'ui-app/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ui-app/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+
+jobs:
+  node-ci:
+    uses: ./.github/workflows/_node-ci.yml
+    with:
+      workspace: 'ui-app'
+      run_coverage: false
+    secrets: inherit
+
+  generate-mocks:
+    needs: node-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate mocks from local pacts
+        # For PRs, use local pacts if available; otherwise integration-ci will handle broker-based mocks
+        run: |
+          if [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
+            npm run mocks:generate
+          else
+            echo "No local pacts found. Skipping mock generation. Integration CI will handle this."
+            exit 0
+          fi
+
+  start-mocks:
+    needs: generate-mocks
+    uses: ./.github/workflows/_mockoon.yml
+    with:
+      action: 'start'
+      broker_url: 'http://localhost:9292'
+    # Note: This will only run if generate-mocks succeeds
+    # If no pacts found, generate-mocks exits 0 (success) but mocks won't be generated
+    # The _mockoon.yml workflow will handle the case where mocks don't exist
+
+  playwright-mock:
+    needs: start-mocks
+    uses: ./.github/workflows/_playwright.yml
+    with:
+      project: 'mock-mode'
+      mock_mode: true
+
+  stop-mocks:
+    needs: [playwright-mock]
+    if: always()
+    uses: ./.github/workflows/_mockoon.yml
+    with:
+      action: 'stop'

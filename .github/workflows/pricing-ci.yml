@@ -1,0 +1,80 @@
+name: Pricing API CI
+
+on:
+  pull_request:
+    paths:
+      - 'pricing-api/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+      - 'jest.base.config.ts'
+      - 'tools/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'pricing-api/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+      - 'jest.base.config.ts'
+      - 'tools/**'
+
+jobs:
+  node-ci:
+    uses: ./.github/workflows/_node-ci.yml
+    with:
+      workspace: 'pricing-api'
+      run_coverage: true
+    secrets: inherit
+
+  broker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start Pact Broker
+        run: docker compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+
+  pact-verify:
+    needs: [node-ci, broker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify provider contracts
+        run: npm run pact:verify --workspace pricing-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_PROVIDER_VERSION: ${{ github.sha }}
+          PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
+
+  stop-broker:
+    needs: [pact-verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stop Pact Broker
+        run: docker compose down

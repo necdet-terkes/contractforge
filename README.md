@@ -202,17 +202,125 @@ Notes:
 - **pre-commit**: lint-staged (eslint --fix + prettier write) then `npm run test:unit`
 - **pre-push**: `npm run check` (typecheck + lint + unit tests)
 
-### CI
+### CI (Multi-Pipeline Monorepo)
 
-- GitHub Actions workflow `.github/workflows/ci.yml`
-- Runs on pull_request and push to main
-- Steps: npm ci → typecheck → lint → unit tests (with coverage) → Pact Broker → consumer pacts → provider verification → generate mocks → start mocks → UI tests (against mocks) → aggregate test reports
-- **Test Reporting**:
-  - Combined test summary (Jest + Playwright + Pact) via `npm run test:report`
-  - Coverage reports (HTML + JSON) from all workspaces
-  - GitHub Actions summary with test results and coverage metrics
-  - Artifacts uploaded for test results, coverage, and Playwright reports
-  - JUnit XML reports from Playwright for CI integration
+ContractForge uses a **multi-pipeline monorepo** CI architecture where each service has its own pipeline that runs based on path filters. This mimics a "multi-repo" setup while maintaining monorepo benefits.
+
+#### Architecture
+
+**Reusable Workflows** (`.github/workflows/_*.yml`):
+
+- `_node-ci.yml` - Common Node.js setup, typecheck, lint, unit tests, coverage
+- `_pact-broker.yml` - Pact Broker lifecycle management (start, stop, health)
+- `_mockoon.yml` - Mockoon mock generation and management
+- `_playwright.yml` - Playwright E2E test execution
+
+**Service-Specific Pipelines**:
+
+- `inventory-ci.yml` - Runs when `inventory-api/**` changes
+- `user-ci.yml` - Runs when `user-api/**` changes
+- `pricing-ci.yml` - Runs when `pricing-api/**` changes
+- `orchestrator-ci.yml` - Runs when `orchestrator-api/**` changes
+- `ui-ci.yml` - Runs when `ui-app/**` changes
+- `integration-ci.yml` - Runs when any service changes (full integration tests)
+
+#### Pipeline Triggers
+
+| Pipeline            | Triggers On                                       | What It Runs                                               |
+| ------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| **inventory-ci**    | `inventory-api/**`, shared configs                | Unit tests, Pact provider verification                     |
+| **user-ci**         | `user-api/**`, shared configs                     | Unit tests, Pact provider verification                     |
+| **pricing-ci**      | `pricing-api/**`, shared configs                  | Unit tests, Pact provider verification                     |
+| **orchestrator-ci** | `orchestrator-api/**`, shared configs             | Unit tests, Pact consumer tests + publish                  |
+| **ui-ci**           | `ui-app/**`, shared configs                       | Typecheck, lint, Playwright (mock mode)                    |
+| **integration-ci**  | Any service change, `tools/mockoon/**`, workflows | Full stack: all tests, Pact flow, mocks, E2E (mock + real) |
+
+**Shared Configs** (trigger all pipelines):
+
+- `package.json`, `package-lock.json`
+- `tsconfig*.json`, `.eslintrc*`
+- `jest.base.config.ts`
+- `tools/**` (if used by service)
+
+#### Running Pipelines Locally
+
+**Service-specific checks:**
+
+```bash
+# Inventory API
+npm run typecheck --workspace inventory-api
+npm run lint
+npm run test --workspace inventory-api
+npm run pact:verify --workspace inventory-api
+
+# User API
+npm run typecheck --workspace user-api
+npm run lint
+npm run test --workspace user-api
+npm run pact:verify --workspace user-api
+
+# Pricing API
+npm run typecheck --workspace pricing-api
+npm run lint
+npm run test --workspace pricing-api
+npm run pact:verify --workspace pricing-api
+
+# Orchestrator API
+npm run typecheck --workspace orchestrator-api
+npm run lint
+npm run test --workspace orchestrator-api
+npm run pact:consumer:all --workspace orchestrator-api
+
+# UI App
+npm run typecheck --workspace ui-app
+npm run lint
+npm run test:e2e --workspace ui-app
+```
+
+**Full integration (simulates integration-ci.yml):**
+
+```bash
+# Run all checks
+npm run typecheck
+npm run lint
+npm run test:coverage
+
+# Full Pact flow
+npm run pact:all
+
+# Generate mocks and run E2E
+npm run mocks:dev
+npm run test:e2e
+```
+
+#### Manual Integration CI Trigger
+
+Integration CI can be manually triggered via GitHub Actions UI:
+
+1. Go to Actions → Integration CI
+2. Click "Run workflow"
+3. Select branch and run
+
+#### PR Gating
+
+**Recommended branch protection rules:**
+
+- **Required checks** (for service changes):
+  - `inventory-ci` (if `inventory-api/**` changed)
+  - `user-ci` (if `user-api/**` changed)
+  - `pricing-ci` (if `pricing-api/**` changed)
+  - `orchestrator-ci` (if `orchestrator-api/**` changed)
+  - `ui-ci` (if `ui-app/**` changed)
+- **Required for all PRs**:
+  - `integration-ci` (runs full stack validation)
+
+**Test Reporting**:
+
+- Combined test summary (Jest + Playwright + Pact) via `npm run test:report`
+- Coverage reports (HTML + JSON) from all workspaces
+- GitHub Actions summary with test results and coverage metrics
+- Artifacts uploaded for test results, coverage, and Playwright reports
+- JUnit XML reports from Playwright for CI integration
 
 ### Contract Testing (Pact)
 

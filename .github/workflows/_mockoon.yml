@@ -1,0 +1,89 @@
+name: Mockoon Mocks (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      action:
+        description: 'Action: start, stop, or generate'
+        required: true
+        type: string
+        default: 'start'
+      broker_url:
+        description: 'Pact Broker URL (if generating from broker)'
+        required: false
+        type: string
+        default: 'http://localhost:9292'
+      broker_username:
+        description: 'Pact Broker username'
+        required: false
+        type: string
+        default: 'pact'
+      broker_password:
+        description: 'Pact Broker password'
+        required: false
+        type: string
+        default: 'pact'
+
+jobs:
+  mockoon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull pacts
+        if: ${{ inputs.action == 'generate' || inputs.action == 'start' }}
+        run: npm run pacts:pull
+        env:
+          PACT_BROKER_BASE_URL: ${{ inputs.broker_url }}
+          PACT_BROKER_USERNAME: ${{ inputs.broker_username }}
+          PACT_BROKER_PASSWORD: ${{ inputs.broker_password }}
+
+      - name: Generate Mockoon mocks
+        if: ${{ inputs.action == 'generate' || inputs.action == 'start' }}
+        run: npm run mocks:generate
+
+      - name: Check if mock files exist
+        if: ${{ inputs.action == 'start' }}
+        id: check-mocks
+        run: |
+          if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
+             [ -f "tools/mockoon/generated/user-api.json" ] && \
+             [ -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "mocks_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "mocks_exist=false" >> $GITHUB_OUTPUT
+            echo "Mock files not found. Skipping mock start."
+          fi
+
+      - name: Start Mockoon mocks
+        if: ${{ inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true' }}
+        run: |
+          npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001 > /tmp/mockoon-inventory.log 2>&1 &
+          echo $! > /tmp/mockoon-inventory.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/user-api.json --port 5002 > /tmp/mockoon-user.log 2>&1 &
+          echo $! > /tmp/mockoon-user.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/pricing-api.json --port 5003 > /tmp/mockoon-pricing.log 2>&1 &
+          echo $! > /tmp/mockoon-pricing.pid
+          sleep 3
+
+      - name: Wait for mocks to be ready
+        if: ${{ inputs.action == 'start' && steps.check-mocks.outputs.mocks_exist == 'true' }}
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:5001/products && curl -f http://localhost:5002/users && curl -f http://localhost:5003/pricing/rules; do sleep 2; done'
+
+      - name: Stop Mockoon mocks
+        if: ${{ inputs.action == 'stop' }}
+        run: |
+          if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) || true; fi
+          if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) || true; fi
+          if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) || true; fi

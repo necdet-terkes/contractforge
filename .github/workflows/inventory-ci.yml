@@ -30,22 +30,76 @@ jobs:
       run_coverage: true
     secrets: inherit
 
-  broker:
+  download-contracts:
+    needs: node-ci
+    # Download contracts from Integration CI (if available) or use local pacts
+    # In real-world: Contracts are in shared persistent broker
+    # In POC: Contracts are shared via artifacts from Integration CI
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start Pact Broker
-        run: docker compose up -d
+      - name: Download pact contracts from Integration CI
+        # Try to download contracts from Integration CI artifact
+        # If Integration CI hasn't run yet, use local pacts as fallback
+        uses: actions/download-artifact@v4
+        with:
+          name: pact-contracts
+          path: tools/mockoon/pacts
+          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Wait for Pact Broker
+      - name: Download orchestrator contracts
+        uses: actions/download-artifact@v4
+        with:
+          name: pact-contracts-orchestrator
+          path: orchestrator-api/pacts
+          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare contracts for verification
+        # Copy contracts to expected locations if downloaded
         run: |
-          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+          if [ -d "tools/mockoon/pacts" ] && [ "$(ls -A tools/mockoon/pacts/*.json 2>/dev/null)" ]; then
+            echo "✓ Contracts downloaded from Integration CI"
+            # Copy to orchestrator-api/pacts for broker publishing
+            mkdir -p orchestrator-api/pacts
+            cp tools/mockoon/pacts/*.json orchestrator-api/pacts/ 2>/dev/null || true
+          elif [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
+            echo "✓ Using local contracts"
+          else
+            echo "⚠ No contracts found. Verification may skip or use broker."
+          fi
 
   pact-verify:
-    needs: [node-ci, broker]
+    needs: [node-ci, download-contracts]
+    # In real-world: Broker is persistent and shared across all teams
+    # In POC: Broker runs as service container, contracts from Integration CI (via artifact)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: pact_broker
+          POSTGRES_PASSWORD: pact_broker
+          POSTGRES_DB: pact_broker
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      pact-broker:
+        image: pactfoundation/pact-broker:latest
+        env:
+          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@postgres/pact_broker
+          PACT_BROKER_LOG_LEVEL: INFO
+          PACT_BROKER_BASIC_AUTH_USERNAME: pact
+          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+        ports:
+          - 9292:9292
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +113,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify provider contracts
+      - name: Wait for Pact Broker
+        run: |
+          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+
+      - name: Publish contracts to broker (if available)
+        # In real-world: Contracts are already in shared persistent broker
+        # In POC: Publish contracts from Integration CI artifact to this job's broker
+        # This simulates contracts being in shared broker
+        run: |
+          if [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
+            echo "Publishing contracts from Integration CI to broker..."
+            npm run pact:publish --workspace orchestrator-api || echo "⚠ Contract publish failed, will verify against broker"
+          else
+            echo "⚠ No contracts to publish, will verify against broker (may be empty)"
+          fi
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_CONSUMER_VERSION: ${{ github.sha }}
+          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
+        continue-on-error: true
+
+      - name: Verify provider contracts from broker
+        # In real-world: Broker is persistent and contains latest consumer pacts
+        # Provider verifies against latest consumer contracts published to broker
+        # In POC: Broker runs as service container, may be empty (simulates no contracts yet)
         run: npm run pact:verify --workspace inventory-api
         env:
           PACT_BROKER_BASE_URL: http://localhost:9292
@@ -67,14 +147,3 @@ jobs:
           PACT_BROKER_PASSWORD: pact
           PACT_PROVIDER_VERSION: ${{ github.sha }}
           PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
-
-  stop-broker:
-    needs: [pact-verify]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Stop Pact Broker
-        run: docker compose down

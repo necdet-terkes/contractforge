@@ -48,22 +48,34 @@ jobs:
       - name: Unit tests with coverage
         run: npm run test:coverage
 
-  broker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Start Pact Broker
-        run: docker compose up -d
-
-      - name: Wait for Pact Broker
-        run: |
-          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
-
   pact-flow:
-    needs: broker
+    needs: integration
+    # In real-world: Broker is persistent and shared across all teams
+    # In POC: Broker runs as service container (persistent within job)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: pact_broker
+          POSTGRES_PASSWORD: pact_broker
+          POSTGRES_DB: pact_broker
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      pact-broker:
+        image: pactfoundation/pact-broker:latest
+        env:
+          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@postgres/pact_broker
+          PACT_BROKER_LOG_LEVEL: INFO
+          PACT_BROKER_BASIC_AUTH_USERNAME: pact
+          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+        ports:
+          - 9292:9292
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,7 +89,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Wait for Pact Broker
+        run: |
+          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+
       - name: Run Pact consumer tests and publish
+        # Step 1: Consumer (orchestrator) runs tests and publishes contracts to broker
+        # In real-world: This happens in orchestrator's CI, publishes to shared persistent broker
+        # In POC: Broker runs as service container (persistent within this job)
         run: npm run pact:consumer:all --workspace orchestrator-api
         env:
           PACT_BROKER_BASE_URL: http://localhost:9292
@@ -87,6 +106,10 @@ jobs:
           PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
 
       - name: Verify all provider contracts
+        # Step 2: Providers verify against latest consumer contracts from broker
+        # In real-world: Each provider CI independently verifies against broker
+        # If verification fails, provider cannot merge (contract broken)
+        # In POC: Broker runs as service container, contains contracts from step 1
         run: npm run pact:verify
         env:
           PACT_BROKER_BASE_URL: http://localhost:9292
@@ -111,12 +134,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Mockoon mocks from Pact contracts
-        run: npm run pacts:pull && npm run mocks:generate
+      - name: Pull pacts from broker
+        # Step 3a: Pull latest contracts from broker
+        # In real-world: Mock generation service pulls from persistent broker
+        run: npm run pacts:pull
         env:
           PACT_BROKER_BASE_URL: http://localhost:9292
           PACT_BROKER_USERNAME: pact
           PACT_BROKER_PASSWORD: pact
+
+      - name: Generate Mockoon mocks from Pact contracts
+        # Step 3b: Generate mocks from contracts
+        # In real-world: Mocks are regenerated when contracts change
+        # UI and other services depend on these mocks
+        run: npm run mocks:generate
+
+      - name: Upload pact contracts as artifact
+        # Step 3c: Upload contracts so other CI pipelines can use them
+        # In real-world: Contracts are in shared persistent broker
+        # In POC: Contracts are shared via artifacts (simulates shared broker)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pact-contracts
+          path: |
+            tools/mockoon/pacts/*.json
+            orchestrator-api/pacts/*.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload generated mocks as artifact
+        # Step 3d: Upload mocks so UI CI and other services can use them
+        # In real-world: Mocks are in shared mock server
+        # In POC: Mocks are shared via artifacts (simulates shared mock server)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mockoon-mocks
+          path: tools/mockoon/generated/*.json
+          retention-days: 7
+          if-no-files-found: ignore
 
   start-mocks:
     needs: generate-mocks
@@ -220,9 +275,6 @@ jobs:
           if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) 2>/dev/null || true; fi
           if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) 2>/dev/null || true; fi
           if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) 2>/dev/null || true; fi
-
-      - name: Stop Pact Broker
-        run: docker compose down
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4

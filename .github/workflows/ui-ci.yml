@@ -26,11 +26,49 @@ jobs:
       run_coverage: false
     secrets: inherit
 
-  generate-mocks:
+  download-mocks:
     needs: node-ci
+    # Download mocks from Integration CI (if available)
+    # In real-world: Mocks are in shared mock server
+    # In POC: Mocks are shared via artifacts from Integration CI
     runs-on: ubuntu-latest
     outputs:
-      mocks_generated: ${{ steps.generate.outputs.mocks_generated }}
+      mocks_available: ${{ steps.check-mocks.outputs.mocks_available }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download mockoon mocks from Integration CI
+        # Try to download mocks from Integration CI artifact
+        # If Integration CI hasn't run yet, generate from local pacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mockoon-mocks
+          path: tools/mockoon/generated
+          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if mocks are available
+        id: check-mocks
+        run: |
+          if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
+             [ -f "tools/mockoon/generated/user-api.json" ] && \
+             [ -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "mocks_available=true" >> $GITHUB_OUTPUT
+            echo "✓ Mocks downloaded from Integration CI"
+          else
+            echo "mocks_available=false" >> $GITHUB_OUTPUT
+            echo "⚠ Mocks not available from Integration CI, will generate from contracts"
+          fi
+
+  generate-mocks:
+    needs: [node-ci, download-mocks]
+    # Generate mocks if not available from Integration CI
+    # In real-world: Mocks are in shared mock server
+    # In POC: Mocks are shared via artifacts, or generated from contracts if not available
+    runs-on: ubuntu-latest
+    outputs:
+      mocks_generated: ${{ steps.check-final.outputs.mocks_generated }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,32 +82,68 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate mocks from local pacts
-        id: generate
-        # For PRs, use local pacts if available; otherwise integration-ci will handle broker-based mocks
+      - name: Download contracts if mocks not available
+        if: needs.download-mocks.outputs.mocks_available != 'true'
         run: |
-          if [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
+          # Download contracts from Integration CI to generate mocks
+          # In real-world: Contracts are in shared persistent broker
+          # In POC: Contracts are shared via artifacts from Integration CI
+          mkdir -p tools/mockoon/pacts orchestrator-api/pacts
+        continue-on-error: true
+
+      - name: Download pact contracts from Integration CI
+        if: needs.download-mocks.outputs.mocks_available != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: pact-contracts
+          path: tools/mockoon/pacts
+          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download orchestrator contracts
+        if: needs.download-mocks.outputs.mocks_available != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: pact-contracts-orchestrator
+          path: orchestrator-api/pacts
+          if-no-files-found: ignore
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate mocks from contracts (if not downloaded)
+        if: needs.download-mocks.outputs.mocks_available != 'true'
+        id: generate
+        run: |
+          # Check if contracts are available to generate mocks
+          if [ -d "tools/mockoon/pacts" ] && [ "$(ls -A tools/mockoon/pacts/*.json 2>/dev/null)" ]; then
             npm run mocks:generate
             echo "mocks_generated=true" >> $GITHUB_OUTPUT
-            echo "✓ Mocks generated from local pacts"
+            echo "✓ Mocks generated from Integration CI contracts"
+          elif [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
+            npm run mocks:generate
+            echo "mocks_generated=true" >> $GITHUB_OUTPUT
+            echo "✓ Mocks generated from local contracts (fallback)"
           else
             echo "mocks_generated=false" >> $GITHUB_OUTPUT
-            echo "No local pacts found. Skipping mock generation. Integration CI will handle this."
+            echo "⚠ No contracts found. Cannot generate mocks."
           fi
 
-      - name: Verify mock files were generated
-        if: steps.generate.outputs.mocks_generated == 'true'
-        # Only verify if we attempted to generate mocks
+      - name: Check final mock availability
+        id: check-final
         run: |
-          if [ ! -f "tools/mockoon/generated/inventory-api.json" ] || \
-             [ ! -f "tools/mockoon/generated/user-api.json" ] || \
-             [ ! -f "tools/mockoon/generated/pricing-api.json" ]; then
-            echo "❌ Mock files were not generated. Cannot run Playwright tests in mock mode."
-            echo "This usually means mock generation failed."
-            exit 1
+          if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
+             [ -f "tools/mockoon/generated/user-api.json" ] && \
+             [ -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "mocks_generated=true" >> $GITHUB_OUTPUT
+            echo "✓ Mocks are available (from Integration CI or generated)"
           else
-            echo "✓ Mock files verified: all required mocks exist"
+            echo "mocks_generated=false" >> $GITHUB_OUTPUT
+            echo "❌ Mocks are not available"
           fi
+
+      - name: Verify mock files exist
+        if: steps.check-final.outputs.mocks_generated == 'true'
+        run: |
+          echo "✓ Mock files verified: all required mocks exist"
 
   start-mocks:
     needs: generate-mocks

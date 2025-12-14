@@ -84,19 +84,22 @@ export class AdminPricingRulesSection extends BasePage {
     const editButton = this.page.getByTestId(`rule-edit-${ruleId}`);
 
     // Set up dialog listeners BEFORE clicking the button
+    // This ensures we catch dialogs even if they appear immediately
     const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog4Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
     // Click the edit button and wait for first dialog simultaneously
-    // Use noWaitAfter to prevent click timeout when dialog opens immediately
+    // This prevents click timeout when dialog opens immediately
     const [dialog1] = await Promise.all([
       dialog1Promise,
       editButton.click({ noWaitAfter: true }).catch(() => {
         // Click may fail if dialog opens immediately, but dialog promise will resolve
       }),
     ]);
+
+    // Handle first dialog (loyaltyTier)
     await dialog1.accept(
       updates.loyaltyTier !== undefined ? updates.loyaltyTier : dialog1.defaultValue() || ''
     );
@@ -104,7 +107,7 @@ export class AdminPricingRulesSection extends BasePage {
     // Small delay to allow JavaScript to process first dialog
     await this.page.waitForTimeout(100);
 
-    // Handle second dialog (rate)
+    // Wait for and handle second dialog (rate)
     const dialog2 = await dialog2Promise;
     await dialog2.accept(
       updates.rate !== undefined ? String(updates.rate) : dialog2.defaultValue() || ''
@@ -113,7 +116,7 @@ export class AdminPricingRulesSection extends BasePage {
     // Small delay to allow JavaScript to process second dialog
     await this.page.waitForTimeout(100);
 
-    // Handle third dialog (description)
+    // Wait for and handle third dialog (description)
     const dialog3 = await dialog3Promise;
     await dialog3.accept(
       updates.description !== undefined ? updates.description : dialog3.defaultValue() || ''
@@ -122,7 +125,7 @@ export class AdminPricingRulesSection extends BasePage {
     // Small delay to allow JavaScript to process third dialog
     await this.page.waitForTimeout(100);
 
-    // Handle fourth dialog (active)
+    // Wait for and handle fourth dialog (active)
     const dialog4 = await dialog4Promise;
     await dialog4.accept(
       updates.active !== undefined ? String(updates.active) : dialog4.defaultValue() || ''

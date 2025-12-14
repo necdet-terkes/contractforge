@@ -113,8 +113,20 @@ test.describe('Admin CRUD Operations', () => {
         loyaltyTier: 'BRONZE',
       });
 
-      // Verify exists
-      expect(await adminPage.usersSection.isUserVisible(userId)).toBe(true);
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the user row to appear in the table
+      // Retry checking for the user to appear (with timeout)
+      let userVisible = false;
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(300);
+        userVisible = await adminPage.usersSection.isUserVisible(userId);
+        if (userVisible) break;
+      }
+
+      // Verify exists - must be visible before delete
+      expect(userVisible).toBe(true);
 
       // Delete
       await adminPage.usersSection.deleteUser(userId);
@@ -328,8 +340,20 @@ test.describe('Admin CRUD Operations', () => {
         active: true,
       });
 
-      // Verify exists
-      expect(await adminPage.pricingRulesSection.isRuleVisible(ruleId)).toBe(true);
+      // Wait for network request to complete
+      await page.waitForLoadState('networkidle');
+
+      // Wait for the rule row to appear in the table
+      // Retry checking for the rule to appear (with timeout)
+      let ruleVisible = false;
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(300);
+        ruleVisible = await adminPage.pricingRulesSection.isRuleVisible(ruleId);
+        if (ruleVisible) break;
+      }
+
+      // Verify exists - must be visible before delete
+      expect(ruleVisible).toBe(true);
 
       // Delete
       await adminPage.pricingRulesSection.deleteRule(ruleId);

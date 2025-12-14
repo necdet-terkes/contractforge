@@ -62,24 +62,26 @@ export class AdminUsersSection extends BasePage {
     const currentUser = await this.getUser(userId);
 
     // Set up dialog listeners BEFORE clicking the button
-    // This ensures we catch both dialogs even if they appear quickly
+    // This ensures we catch dialogs even if they appear immediately
     const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
     // Click the edit button and wait for first dialog simultaneously
-    // Use noWaitAfter to prevent click timeout when dialog opens immediately
+    // This prevents click timeout when dialog opens immediately
     const [dialog1] = await Promise.all([
       dialog1Promise,
       editButton.click({ noWaitAfter: true }).catch(() => {
         // Click may fail if dialog opens immediately, but dialog promise will resolve
       }),
     ]);
+
+    // Handle first dialog (name)
     await dialog1.accept(updates.name || dialog1.defaultValue() || currentUser?.name || '');
 
     // Small delay to allow JavaScript to process first dialog and trigger second
     await this.page.waitForTimeout(100);
 
-    // Handle second dialog (loyaltyTier)
+    // Wait for and handle second dialog (loyaltyTier)
     const dialog2 = await dialog2Promise;
     await dialog2.accept(
       updates.loyaltyTier || dialog2.defaultValue() || currentUser?.loyaltyTier || ''

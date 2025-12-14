@@ -77,24 +77,27 @@ export class AdminProductsSection extends BasePage {
     const currentProduct = await this.getProduct(productId);
 
     // Set up dialog listeners BEFORE clicking the button
+    // This ensures we catch dialogs even if they appear immediately
     const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
     const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
 
     // Click the edit button and wait for first dialog simultaneously
-    // Use noWaitAfter to prevent click timeout when dialog opens immediately
+    // This prevents click timeout when dialog opens immediately
     const [dialog1] = await Promise.all([
       dialog1Promise,
       editButton.click({ noWaitAfter: true }).catch(() => {
         // Click may fail if dialog opens immediately, but dialog promise will resolve
       }),
     ]);
+
+    // Handle first dialog (name)
     await dialog1.accept(updates.name || dialog1.defaultValue() || currentProduct?.name || '');
 
     // Small delay to allow JavaScript to process first dialog
     await this.page.waitForTimeout(100);
 
-    // Handle second dialog (stock)
+    // Wait for and handle second dialog (stock)
     const dialog2 = await dialog2Promise;
     await dialog2.accept(
       String(
@@ -107,7 +110,7 @@ export class AdminProductsSection extends BasePage {
     // Small delay to allow JavaScript to process second dialog
     await this.page.waitForTimeout(100);
 
-    // Handle third dialog (price)
+    // Wait for and handle third dialog (price)
     const dialog3 = await dialog3Promise;
     await dialog3.accept(
       String(

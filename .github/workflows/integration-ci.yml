@@ -21,7 +21,7 @@ on:
       - 'ui-app/**'
       - 'tools/mockoon/**'
       - '.github/workflows/**'
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   integration:
@@ -178,7 +178,7 @@ jobs:
       project: 'real-mode'
       mock_mode: false
 
-  cleanup-and-report:
+  cleanup:
     needs: [integration, playwright-real]
     if: always()
     runs-on: ubuntu-latest
@@ -197,26 +197,32 @@ jobs:
 
       - name: Stop real APIs
         run: |
-          if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) || true; fi
-          if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) || true; fi
-          if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) || true; fi
+          # Kill processes by port since PID files may not be accessible across jobs
+          # Find processes listening on API ports and kill them
+          # Try lsof first, fallback to ss/netstat if lsof is not available
+          for port in 4001 4002 4003; do
+            # Try lsof (common on Ubuntu)
+            PID=$(lsof -ti:$port 2>/dev/null || true)
+            if [ -z "$PID" ]; then
+              # Fallback to ss (modern alternative)
+              PID=$(ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
+            fi
+            if [ -z "$PID" ]; then
+              # Fallback to netstat (older systems)
+              PID=$(netstat -ltnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | head -1 || true)
+            fi
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              echo "Stopping process on port $port (PID: $PID)"
+              kill $PID 2>/dev/null || true
+            fi
+          done
+          # Also try PID files as fallback (for same-job cleanup)
+          if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) 2>/dev/null || true; fi
 
       - name: Stop Pact Broker
         run: docker compose down
-
-      - name: Aggregate test reports
-        run: npm run test:report
-        continue-on-error: true
-
-      - name: Upload test summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-summary
-          path: |
-            test-results/test-summary.json
-            test-results/test-summary.md
-          retention-days: 30
-          if-no-files-found: ignore
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4

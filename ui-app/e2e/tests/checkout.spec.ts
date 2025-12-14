@@ -126,7 +126,6 @@ test.describe('Checkout Flow', () => {
     }
 
     // At least one product should show discount (if user has discount rules)
-    // Note: This may not always be true if no discount rules exist for the user's tier
     // So we just verify the pricing structure is correct
     expect(productIds.length).toBeGreaterThan(0);
   });

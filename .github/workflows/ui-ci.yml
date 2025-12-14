@@ -29,6 +29,8 @@ jobs:
   generate-mocks:
     needs: node-ci
     runs-on: ubuntu-latest
+    outputs:
+      mocks_generated: ${{ steps.generate.outputs.mocks_generated }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,35 +45,50 @@ jobs:
         run: npm ci
 
       - name: Generate mocks from local pacts
+        id: generate
         # For PRs, use local pacts if available; otherwise integration-ci will handle broker-based mocks
         run: |
           if [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
             npm run mocks:generate
+            echo "mocks_generated=true" >> $GITHUB_OUTPUT
+            echo "✓ Mocks generated from local pacts"
           else
+            echo "mocks_generated=false" >> $GITHUB_OUTPUT
             echo "No local pacts found. Skipping mock generation. Integration CI will handle this."
-            exit 0
+          fi
+
+      - name: Verify mock files were generated
+        if: steps.generate.outputs.mocks_generated == 'true'
+        # Only verify if we attempted to generate mocks
+        run: |
+          if [ ! -f "tools/mockoon/generated/inventory-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/user-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "❌ Mock files were not generated. Cannot run Playwright tests in mock mode."
+            echo "This usually means mock generation failed."
+            exit 1
+          else
+            echo "✓ Mock files verified: all required mocks exist"
           fi
 
   start-mocks:
     needs: generate-mocks
+    if: ${{ needs.generate-mocks.outputs.mocks_generated == 'true' }}
     uses: ./.github/workflows/_mockoon.yml
     with:
       action: 'start'
-      broker_url: 'http://localhost:9292'
-    # Note: This will only run if generate-mocks succeeds
-    # If no pacts found, generate-mocks exits 0 (success) but mocks won't be generated
-    # The _mockoon.yml workflow will handle the case where mocks don't exist
 
   playwright-mock:
-    needs: start-mocks
+    needs: [generate-mocks, start-mocks]
+    if: ${{ needs.generate-mocks.outputs.mocks_generated == 'true' }}
     uses: ./.github/workflows/_playwright.yml
     with:
       project: 'mock-mode'
       mock_mode: true
 
   stop-mocks:
-    needs: [playwright-mock]
-    if: always()
+    needs: [generate-mocks, playwright-mock]
+    if: ${{ always() && needs.generate-mocks.outputs.mocks_generated == 'true' }}
     uses: ./.github/workflows/_mockoon.yml
     with:
       action: 'stop'

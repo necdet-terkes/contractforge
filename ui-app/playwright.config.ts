@@ -57,19 +57,12 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
       },
-      // Real mode: Real APIs (inventory, user, pricing) must be started separately
-      // In CI, they are started in a separate step
-      // For local: npm run dev:all (starts all real APIs)
-      // Note: webServer cannot be overridden at project level, so we rely on
-      // environment variables (MOCK_MODE=false) to control the global webServer behavior
-      // Real mode tests can also run in parallel - each test uses unique IDs (generateUniqueId)
-      // No race conditions since tests don't share data
+      // Real mode: Real APIs must be started separately (npm run dev:all)
+      // Real mode tests can run in parallel - each test uses unique IDs
     },
   ],
   webServer: [
-    // Note: Mockoon mocks must be started separately before running tests
-    // In CI, mocks are started in a separate step (see .github/workflows/ci.yml)
-    // For local development, run: npm run mocks:dev
+    // Mockoon mocks must be started separately (npm run mocks:dev)
     // Playwright's webServer is not suitable for long-running processes like Mockoon CLI
 
     // Start orchestrator API (required for UI to work)

@@ -36,15 +36,15 @@ jobs:
         run: npm run lint
 
       - name: Unit tests
-        if: ${{ !inputs.run_coverage }}
+        if: inputs.run_coverage != true
         run: npm run test --workspace ${{ inputs.workspace }} --if-present || npm run test:unit
 
       - name: Unit tests with coverage
-        if: ${{ inputs.run_coverage }}
+        if: inputs.run_coverage == true
         run: npm run test --workspace ${{ inputs.workspace }} --if-present -- --coverage --runInBand || npm run test:coverage
 
       - name: Upload coverage
-        if: ${{ inputs.run_coverage }}
+        if: inputs.run_coverage == true
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ inputs.workspace }}

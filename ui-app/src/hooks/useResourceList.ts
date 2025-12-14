@@ -37,9 +37,7 @@ export function useResourceList<T>({ fetchFn, transform }: UseResourceListOption
   }, []); // Empty deps - load function uses refs, so it doesn't need to change
 
   // Load only on mount
-  // Note: fetchFn and transform are updated in refs, so load() will use the latest versions
-  // If you need to refetch when API URLs change (e.g., mock/real mode switch),
-  // you should use useMemo to stabilize fetchFn or call reload() manually
+  // fetchFn and transform are updated in refs, so load() will use the latest versions
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps

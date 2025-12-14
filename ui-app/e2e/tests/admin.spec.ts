@@ -1,8 +1,5 @@
-// Admin CRUD tests
-// NOTE: These tests run in REAL mode (not mock mode) because Mockoon is static
+// Admin CRUD tests run in REAL mode (not mock mode) because Mockoon is static
 // and doesn't persist state changes. Real APIs are required for CRUD operations.
-//
-// In CI: Real APIs (inventory-api, user-api, pricing-api) are started before these tests.
 // In local: Run `npm run dev:all` to start all real APIs before running real-mode tests.
 
 import { test, expect } from '@playwright/test';
@@ -860,8 +857,6 @@ test.describe('Admin CRUD Operations', () => {
       await checkoutPage.selectUser(userId);
 
       // If there was a discount before, it should be gone now (or reduced)
-      // Note: This test assumes no other GOLD tier rules exist
-      // In a real scenario, we might need to check that the specific rule's discount is gone
 
       // Cleanup
       await header.navigateToAdmin();

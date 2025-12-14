@@ -171,7 +171,6 @@ Standardized tooling is in place across the monorepo.
   - `npm run test:coverage` — runs Jest tests with coverage report
   - `npm run test:e2e` — runs Playwright E2E tests (ui-app)
   - `npm run test:all` — runs unit + E2E tests together
-  - `npm run test:report` — generates combined test report (Jest + Playwright + Coverage)
 - `npm run check` — typecheck + lint + unit tests
 
 - **Per-service Jest** (API services)
@@ -211,9 +210,8 @@ ContractForge uses a **multi-pipeline monorepo** CI architecture where each serv
 **Reusable Workflows** (`.github/workflows/_*.yml`):
 
 - `_node-ci.yml` - Common Node.js setup, typecheck, lint, unit tests, coverage
-- `_pact-broker.yml` - Pact Broker lifecycle management (start, stop, health)
-- `_mockoon.yml` - Mockoon mock generation and management
-- `_playwright.yml` - Playwright E2E test execution
+- `_mockoon.yml` - Mockoon mock generation and management with smart contract change detection
+- `_playwright.yml` - Playwright E2E test execution with mock validation
 
 **Service-Specific Pipelines**:
 
@@ -232,7 +230,7 @@ ContractForge uses a **multi-pipeline monorepo** CI architecture where each serv
 | **user-ci**         | `user-api/**`, shared configs                     | Unit tests, Pact provider verification                     |
 | **pricing-ci**      | `pricing-api/**`, shared configs                  | Unit tests, Pact provider verification                     |
 | **orchestrator-ci** | `orchestrator-api/**`, shared configs             | Unit tests, Pact consumer tests + publish                  |
-| **ui-ci**           | `ui-app/**`, shared configs                       | Typecheck, lint, Playwright (mock mode)                    |
+| **ui-ci**           | `ui-app/**`, shared configs                       | Typecheck, lint, Playwright (mock mode, with validation)   |
 | **integration-ci**  | Any service change, `tools/mockoon/**`, workflows | Full stack: all tests, Pact flow, mocks, E2E (mock + real) |
 
 **Shared Configs** (trigger all pipelines):
@@ -316,11 +314,11 @@ Integration CI can be manually triggered via GitHub Actions UI:
 
 **Test Reporting**:
 
-- Combined test summary (Jest + Playwright + Pact) via `npm run test:report`
-- Coverage reports (HTML + JSON) from all workspaces
-- GitHub Actions summary with test results and coverage metrics
-- Artifacts uploaded for test results, coverage, and Playwright reports
+- Coverage reports (HTML + JSON) uploaded as artifacts per pipeline
+- Playwright test results and traces uploaded as artifacts
+- GitHub Actions provides native test result summaries for each pipeline
 - JUnit XML reports from Playwright for CI integration
+- Each pipeline reports its own test results independently
 
 ### Contract Testing (Pact)
 
@@ -665,29 +663,13 @@ E2E tests run automatically in CI in two phases:
 2. **Real mode tests run** against real APIs
 3. **Real APIs are stopped**
 
-**Test Report Aggregation**
-
-After all tests complete:
-
-1. **Combined test report** is generated via `npm run test:report`
-2. **Test summary** (JSON + Markdown) is created with:
-   - Jest test suites and coverage metrics
-   - Playwright test results (passed/failed/skipped)
-   - Overall test statistics and pass rate
-3. **GitHub Actions summary** is written to `$GITHUB_STEP_SUMMARY`
-4. **Artifacts are uploaded**:
-   - Test summary (JSON + Markdown)
-   - Coverage reports (HTML + JSON from all workspaces)
-   - Playwright HTML reports
-   - Playwright traces (on failure)
-
 The CI workflow ensures:
 
 - Mock mode tests run with `MOCK_MODE=true` (UI shows mock banner)
 - Real mode tests run with `MOCK_MODE=false` (no mock banner)
 - All tests are deterministic and isolated
 - Test results and traces are available for debugging
-- Combined test reports provide comprehensive view of all test results
+- Each pipeline reports its own test results independently
 
 #### Troubleshooting
 
@@ -842,14 +824,6 @@ Services can be configured via environment variables:
   ```bash
   npm run test:coverage
   ```
-- **Generate combined test report:**
-  ```bash
-  npm run test:report
-  ```
-  This generates:
-  - `test-results/test-summary.json` - Machine-readable test summary
-  - `test-results/test-summary.md` - Human-readable markdown report
-  - GitHub Actions summary (when run in CI)
 - **Per workspace unit tests (Jest):**
   ```bash
   npm test --workspace orchestrator-api
@@ -888,10 +862,6 @@ ContractForge includes comprehensive test reporting that aggregates results from
   - Pass/fail/skip statistics
   - Coverage metrics (lines, statements, functions, branches)
   - Pass rate calculation
-
-**Report Location**: `test-results/test-summary.json` and `test-results/test-summary.md`
-
-**CI Integration**: Reports are automatically generated in CI and uploaded as artifacts. GitHub Actions summary is displayed in the workflow run.
 
 ## 📝 Key Features
 

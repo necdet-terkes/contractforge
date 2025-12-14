@@ -34,6 +34,25 @@ jobs:
         working-directory: ui-app
         run: npx playwright install --with-deps chromium
 
+      - name: Verify mocks are running (mock mode only)
+        if: inputs.mock_mode == true
+        run: |
+          # Check if mock servers are running on expected ports
+          MOCKS_RUNNING=true
+          for port in 5001 5002 5003; do
+            if ! curl -f http://localhost:$port >/dev/null 2>&1; then
+              MOCKS_RUNNING=false
+              echo "❌ Mock server not responding on port $port"
+            fi
+          done
+          if [ "$MOCKS_RUNNING" = "false" ]; then
+            echo "❌ Mock servers are not running. Cannot run Playwright tests in mock mode."
+            echo "This usually means mocks failed to start or were not generated."
+            exit 1
+          else
+            echo "✓ All mock servers are running and responding"
+          fi
+
       - name: Run Playwright tests
         working-directory: ui-app
         run: |

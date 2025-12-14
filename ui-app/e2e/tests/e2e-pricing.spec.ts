@@ -18,9 +18,6 @@ test.describe('End-to-End: Pricing Rules Affect Checkout', () => {
   });
 
   test('creating a pricing rule affects checkout discounts', async ({ page }) => {
-    // Note: Mockoon is static, so we use existing mock data
-    // Use existing GOLD user (u1) and existing GOLD rule (rule-gold-default)
-
     // Step 1: Navigate to Checkout
     await header.navigateToCheckout();
     checkoutPage = new CheckoutPage(page);
@@ -56,15 +53,9 @@ test.describe('End-to-End: Pricing Rules Affect Checkout', () => {
         }
       }
     }
-
-    // Note: With static mocks, we verify that existing rules affect checkout
-    // This demonstrates the end-to-end flow works correctly
   });
 
   test('pricing rules affect checkout discounts', async ({ page }) => {
-    // This test verifies that existing pricing rules affect checkout
-    // Note: With static mocks, we use existing mock data
-
     // Navigate to checkout
     await header.navigateToCheckout();
     checkoutPage = new CheckoutPage(page);
@@ -92,8 +83,5 @@ test.describe('End-to-End: Pricing Rules Affect Checkout', () => {
 
     // Verify pricing was calculated for selected user
     expect(pricingCalculated).toBe(true);
-
-    // Note: With static mocks, we verify the flow works - pricing API is called
-    // and returns calculated prices based on existing rules
   });
 });

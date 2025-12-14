@@ -70,56 +70,43 @@ export class AdminProductsSection extends BasePage {
     productId: string,
     updates: { name?: string; stock?: number; price?: number }
   ) {
-    // Admin uses window.prompt for updates - Admin ALWAYS asks for all 3 fields: name, stock, price
+    // Wait for product to be visible before attempting to update
+    // This is important when navigating back from other pages
+    let currentProduct: Product | null = null;
+    for (let i = 0; i < 20; i++) {
+      await this.page.waitForTimeout(300);
+      currentProduct = await this.getProduct(productId);
+      if (currentProduct) break;
+    }
+
+    if (!currentProduct) {
+      throw new Error(`Product ${productId} not found`);
+    }
+
+    // Click edit button to enter edit mode
     const editButton = this.page.getByTestId(`product-edit-${productId}`);
+    await editButton.click();
+    await this.page.waitForTimeout(200); // Wait for edit mode to activate
 
-    // Get current product to preserve unchanged values
-    const currentProduct = await this.getProduct(productId);
+    // Fill in the form fields
+    if (updates.name !== undefined) {
+      const nameInput = this.page.getByTestId(`product-edit-name-${productId}`);
+      await nameInput.fill(updates.name);
+    }
 
-    // Set up dialog listeners BEFORE clicking the button
-    // This ensures we catch dialogs even if they appear immediately
-    const dialog1Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog2Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
-    const dialog3Promise = this.page.waitForEvent('dialog', { timeout: 15000 });
+    if (updates.stock !== undefined) {
+      const stockInput = this.page.getByTestId(`product-edit-stock-${productId}`);
+      await stockInput.fill(String(updates.stock));
+    }
 
-    // Click the edit button and wait for first dialog simultaneously
-    // This prevents click timeout when dialog opens immediately
-    const [dialog1] = await Promise.all([
-      dialog1Promise,
-      editButton.click({ noWaitAfter: true }).catch(() => {
-        // Click may fail if dialog opens immediately, but dialog promise will resolve
-      }),
-    ]);
+    if (updates.price !== undefined) {
+      const priceInput = this.page.getByTestId(`product-edit-price-${productId}`);
+      await priceInput.fill(String(updates.price));
+    }
 
-    // Handle first dialog (name)
-    await dialog1.accept(updates.name || dialog1.defaultValue() || currentProduct?.name || '');
-
-    // Small delay to allow JavaScript to process first dialog
-    await this.page.waitForTimeout(100);
-
-    // Wait for and handle second dialog (stock)
-    const dialog2 = await dialog2Promise;
-    await dialog2.accept(
-      String(
-        updates.stock !== undefined
-          ? updates.stock
-          : currentProduct?.stock || dialog2.defaultValue() || '0'
-      )
-    );
-
-    // Small delay to allow JavaScript to process second dialog
-    await this.page.waitForTimeout(100);
-
-    // Wait for and handle third dialog (price)
-    const dialog3 = await dialog3Promise;
-    await dialog3.accept(
-      String(
-        updates.price !== undefined
-          ? updates.price
-          : currentProduct?.price || dialog3.defaultValue() || '0'
-      )
-    );
-
+    // Click save button
+    const saveButton = this.page.getByTestId(`product-save-${productId}`);
+    await saveButton.click();
     await this.page.waitForLoadState('networkidle');
   }
 

@@ -25,6 +25,28 @@ export const AdminView: React.FC = () => {
   const styles = getStyles(theme);
   const colors = getColors(theme);
 
+  // Edit mode states
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+
+  // Edit form states
+  const [editingUserForm, setEditingUserForm] = useState<{
+    name: string;
+    loyaltyTier: UserPart['loyaltyTier'];
+  } | null>(null);
+  const [editingProductForm, setEditingProductForm] = useState<{
+    name: string;
+    stock: number;
+    price: number;
+  } | null>(null);
+  const [editingRuleForm, setEditingRuleForm] = useState<{
+    loyaltyTier: DiscountRule['loyaltyTier'];
+    rate: number;
+    description: string;
+    active: boolean;
+  } | null>(null);
+
   // Users
   const [newUser, setNewUser] = useState({
     id: '',
@@ -111,20 +133,30 @@ export const AdminView: React.FC = () => {
     }
   }
 
-  async function handleUpdateUser(user: UserPart) {
-    const name = window.prompt('Update name', user.name);
-    if (name === null) return;
-    const loyalty = window
-      .prompt('Update loyalty tier (BRONZE/SILVER/GOLD)', user.loyaltyTier)
-      ?.toUpperCase();
-    if (loyalty === null) return;
+  function handleStartEditUser(user: UserPart) {
+    setEditingUserId(user.id);
+    setEditingUserForm({
+      name: user.name,
+      loyaltyTier: user.loyaltyTier,
+    });
+  }
+
+  function handleCancelEditUser() {
+    setEditingUserId(null);
+    setEditingUserForm(null);
+  }
+
+  async function handleSaveUser(userId: string) {
+    if (!editingUserForm) return;
 
     setUserCrudError(null);
     try {
-      await updateUser(user.id, {
-        name: name.trim(),
-        loyaltyTier: loyalty?.trim() || undefined,
+      await updateUser(userId, {
+        name: editingUserForm.name.trim(),
+        loyaltyTier: editingUserForm.loyaltyTier,
       });
+      setEditingUserId(null);
+      setEditingUserForm(null);
     } catch (err) {
       // Error already set by hook
     }
@@ -240,20 +272,32 @@ export const AdminView: React.FC = () => {
     }
   }
 
-  async function handleUpdateProduct(product: ProductPart) {
-    const name = window.prompt('Update product name', product.name);
-    if (name === null) return;
-    const stockRaw = window.prompt('Update stock (integer)', String(product.stock));
-    if (stockRaw === null) return;
-    const priceRaw = window.prompt('Update price', String(product.basePrice));
-    if (priceRaw === null) return;
+  function handleStartEditProduct(product: ProductPart) {
+    setEditingProductId(product.id);
+    setEditingProductForm({
+      name: product.name,
+      stock: product.stock,
+      price: product.basePrice,
+    });
+  }
 
-    const stock = Number(stockRaw);
-    const price = Number(priceRaw);
+  function handleCancelEditProduct() {
+    setEditingProductId(null);
+    setEditingProductForm(null);
+  }
+
+  async function handleSaveProduct(productId: string) {
+    if (!editingProductForm) return;
 
     setProductCrudError(null);
     try {
-      await updateProduct(product.id, { name, stock, price });
+      await updateProduct(productId, {
+        name: editingProductForm.name.trim(),
+        stock: editingProductForm.stock,
+        price: editingProductForm.price,
+      });
+      setEditingProductId(null);
+      setEditingProductForm(null);
     } catch (err) {
       // Error already set by hook
     }
@@ -368,36 +412,34 @@ export const AdminView: React.FC = () => {
     }
   }
 
-  async function handleUpdateRule(rule: DiscountRule) {
-    const loyaltyInput = window
-      .prompt('Update loyalty tier (BRONZE/SILVER/GOLD) or leave as-is', rule.loyaltyTier)
-      ?.toUpperCase();
-    if (loyaltyInput === null) return;
+  function handleStartEditRule(rule: DiscountRule) {
+    setEditingRuleId(rule.id);
+    setEditingRuleForm({
+      loyaltyTier: rule.loyaltyTier,
+      rate: rule.rate,
+      description: rule.description || '',
+      active: rule.active,
+    });
+  }
 
-    const rateRaw = window.prompt('Update rate (0-1)', String(rule.rate));
-    if (rateRaw === null) return;
+  function handleCancelEditRule() {
+    setEditingRuleId(null);
+    setEditingRuleForm(null);
+  }
 
-    const description = window.prompt('Update description', rule.description || '');
-    if (description === null) return;
-
-    const activeRaw = window.prompt('Active? (true/false)', String(rule.active));
-    if (activeRaw === null) return;
-
-    const updates: Partial<DiscountRule> = {
-      loyaltyTier: (loyaltyInput?.trim() as DiscountRule['loyaltyTier']) || rule.loyaltyTier,
-      rate: rateRaw.trim() === '' ? rule.rate : Number(rateRaw),
-      description: description.trim(),
-      active:
-        activeRaw.trim().toLowerCase() === 'true'
-          ? true
-          : activeRaw.trim().toLowerCase() === 'false'
-            ? false
-            : rule.active,
-    };
+  async function handleSaveRule(ruleId: string) {
+    if (!editingRuleForm) return;
 
     setRuleCrudError(null);
     try {
-      await updateRule(rule.id, updates);
+      await updateRule(ruleId, {
+        loyaltyTier: editingRuleForm.loyaltyTier,
+        rate: editingRuleForm.rate,
+        description: editingRuleForm.description.trim(),
+        active: editingRuleForm.active,
+      });
+      setEditingRuleId(null);
+      setEditingRuleForm(null);
     } catch (err) {
       // Error already set by hook
     }
@@ -491,43 +533,141 @@ export const AdminView: React.FC = () => {
                 loading={usersLoading}
                 columns={[
                   { key: 'id', label: 'ID' },
-                  { key: 'name', label: 'Name' },
-                  { key: 'loyaltyTier', label: 'Tier' },
+                  {
+                    key: 'name',
+                    label: 'Name',
+                    render: (user) => {
+                      if (editingUserId === user.id && editingUserForm) {
+                        return (
+                          <input
+                            data-testid={`user-edit-name-${user.id}`}
+                            type="text"
+                            value={editingUserForm.name}
+                            onChange={(e) =>
+                              setEditingUserForm((prev) =>
+                                prev ? { ...prev, name: e.target.value } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                            }}
+                          />
+                        );
+                      }
+                      return user.name;
+                    },
+                  },
+                  {
+                    key: 'loyaltyTier',
+                    label: 'Tier',
+                    render: (user) => {
+                      if (editingUserId === user.id && editingUserForm) {
+                        return (
+                          <select
+                            data-testid={`user-edit-tier-${user.id}`}
+                            value={editingUserForm.loyaltyTier}
+                            onChange={(e) =>
+                              setEditingUserForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      loyaltyTier: e.target.value as UserPart['loyaltyTier'],
+                                    }
+                                  : null
+                              )
+                            }
+                            style={{
+                              ...styles.select,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                            }}
+                          >
+                            <option value="BRONZE">BRONZE</option>
+                            <option value="SILVER">SILVER</option>
+                            <option value="GOLD">GOLD</option>
+                          </select>
+                        );
+                      }
+                      return user.loyaltyTier;
+                    },
+                  },
                 ]}
-                actions={(user) => (
-                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-                    <button
-                      data-testid={`user-edit-${user.id}`}
-                      onClick={() => handleUpdateUser(user)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.tertiary;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.secondary}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      data-testid={`user-delete-${user.id}`}
-                      onClick={() => handleDeleteUser(user.id)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.error.bg;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.danger}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                actions={(user) => {
+                  if (editingUserId === user.id) {
+                    return (
+                      <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                        <button
+                          data-testid={`user-save-${user.id}`}
+                          onClick={() => handleSaveUser(user.id)}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primaryHover;
+                            e.currentTarget.style.borderColor = colors.primaryBorder;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primary;
+                            e.currentTarget.style.borderColor = colors.primary;
+                          }}
+                          style={styles.button.primary}
+                        >
+                          Save
+                        </button>
+                        <button
+                          data-testid={`user-cancel-${user.id}`}
+                          onClick={handleCancelEditUser}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.primary;
+                          }}
+                          style={styles.button.secondary}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                      <button
+                        data-testid={`user-edit-${user.id}`}
+                        onClick={() => handleStartEditUser(user)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.secondary}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        data-testid={`user-delete-${user.id}`}
+                        onClick={() => handleDeleteUser(user.id)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.error.bg;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.danger}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  );
+                }}
                 emptyMessage="No users found."
               />
             </div>
@@ -610,54 +750,164 @@ export const AdminView: React.FC = () => {
                 loading={productsLoading}
                 columns={[
                   { key: 'id', label: 'ID' },
-                  { key: 'name', label: 'Name' },
+                  {
+                    key: 'name',
+                    label: 'Name',
+                    render: (product) => {
+                      if (editingProductId === product.id && editingProductForm) {
+                        return (
+                          <input
+                            data-testid={`product-edit-name-${product.id}`}
+                            type="text"
+                            value={editingProductForm.name}
+                            onChange={(e) =>
+                              setEditingProductForm((prev) =>
+                                prev ? { ...prev, name: e.target.value } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                            }}
+                          />
+                        );
+                      }
+                      return product.name;
+                    },
+                  },
                   {
                     key: 'stock',
                     label: 'Stock',
                     align: 'right',
-                    render: (p) => String(p.stock),
+                    render: (product) => {
+                      if (editingProductId === product.id && editingProductForm) {
+                        return (
+                          <input
+                            data-testid={`product-edit-stock-${product.id}`}
+                            type="number"
+                            value={editingProductForm.stock}
+                            onChange={(e) =>
+                              setEditingProductForm((prev) =>
+                                prev ? { ...prev, stock: Number(e.target.value) } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                              width: '80px',
+                            }}
+                          />
+                        );
+                      }
+                      return String(product.stock);
+                    },
                   },
                   {
                     key: 'basePrice',
                     label: 'Price',
                     align: 'right',
-                    render: (p) => `£${p.basePrice}`,
+                    render: (product) => {
+                      if (editingProductId === product.id && editingProductForm) {
+                        return (
+                          <input
+                            data-testid={`product-edit-price-${product.id}`}
+                            type="number"
+                            step="0.01"
+                            value={editingProductForm.price}
+                            onChange={(e) =>
+                              setEditingProductForm((prev) =>
+                                prev ? { ...prev, price: Number(e.target.value) } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                              width: '80px',
+                            }}
+                          />
+                        );
+                      }
+                      return `£${product.basePrice}`;
+                    },
                   },
                 ]}
-                actions={(product) => (
-                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-                    <button
-                      data-testid={`product-edit-${product.id}`}
-                      onClick={() => handleUpdateProduct(product)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.tertiary;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.secondary}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      data-testid={`product-delete-${product.id}`}
-                      onClick={() => handleDeleteProduct(product.id)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.error.bg;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.danger}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                actions={(product) => {
+                  if (editingProductId === product.id) {
+                    return (
+                      <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                        <button
+                          data-testid={`product-save-${product.id}`}
+                          onClick={() => handleSaveProduct(product.id)}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primaryHover;
+                            e.currentTarget.style.borderColor = colors.primaryBorder;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primary;
+                            e.currentTarget.style.borderColor = colors.primary;
+                          }}
+                          style={styles.button.primary}
+                        >
+                          Save
+                        </button>
+                        <button
+                          data-testid={`product-cancel-${product.id}`}
+                          onClick={handleCancelEditProduct}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.primary;
+                          }}
+                          style={styles.button.secondary}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                      <button
+                        data-testid={`product-edit-${product.id}`}
+                        onClick={() => handleStartEditProduct(product)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.secondary}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        data-testid={`product-delete-${product.id}`}
+                        onClick={() => handleDeleteProduct(product.id)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.error.bg;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.danger}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  );
+                }}
                 emptyMessage="No products found."
               />
             </div>
@@ -764,59 +1014,193 @@ export const AdminView: React.FC = () => {
                 loading={rulesLoading}
                 columns={[
                   { key: 'id', label: 'ID' },
-                  { key: 'loyaltyTier', label: 'Tier' },
+                  {
+                    key: 'loyaltyTier',
+                    label: 'Tier',
+                    render: (rule) => {
+                      if (editingRuleId === rule.id && editingRuleForm) {
+                        return (
+                          <select
+                            data-testid={`rule-edit-tier-${rule.id}`}
+                            value={editingRuleForm.loyaltyTier}
+                            onChange={(e) =>
+                              setEditingRuleForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      loyaltyTier: e.target.value as DiscountRule['loyaltyTier'],
+                                    }
+                                  : null
+                              )
+                            }
+                            style={{
+                              ...styles.select,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                            }}
+                          >
+                            <option value="BRONZE">BRONZE</option>
+                            <option value="SILVER">SILVER</option>
+                            <option value="GOLD">GOLD</option>
+                          </select>
+                        );
+                      }
+                      return rule.loyaltyTier;
+                    },
+                  },
                   {
                     key: 'rate',
                     label: 'Rate',
                     align: 'right',
-                    render: (r) => String(r.rate),
+                    render: (rule) => {
+                      if (editingRuleId === rule.id && editingRuleForm) {
+                        return (
+                          <input
+                            data-testid={`rule-edit-rate-${rule.id}`}
+                            type="number"
+                            step="0.01"
+                            value={editingRuleForm.rate}
+                            onChange={(e) =>
+                              setEditingRuleForm((prev) =>
+                                prev ? { ...prev, rate: Number(e.target.value) } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                              width: '80px',
+                            }}
+                          />
+                        );
+                      }
+                      return String(rule.rate);
+                    },
                   },
                   {
                     key: 'description',
                     label: 'Description',
-                    render: (r) => r.description || '-',
+                    render: (rule) => {
+                      if (editingRuleId === rule.id && editingRuleForm) {
+                        return (
+                          <input
+                            data-testid={`rule-edit-description-${rule.id}`}
+                            type="text"
+                            value={editingRuleForm.description}
+                            onChange={(e) =>
+                              setEditingRuleForm((prev) =>
+                                prev ? { ...prev, description: e.target.value } : null
+                              )
+                            }
+                            style={{
+                              ...styles.input,
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.9rem',
+                            }}
+                          />
+                        );
+                      }
+                      return rule.description || '-';
+                    },
                   },
                   {
                     key: 'active',
                     label: 'Active',
                     align: 'center',
-                    render: (r) => (r.active ? '✅' : '❌'),
+                    render: (rule) => {
+                      if (editingRuleId === rule.id && editingRuleForm) {
+                        return (
+                          <input
+                            data-testid={`rule-edit-active-${rule.id}`}
+                            type="checkbox"
+                            checked={editingRuleForm.active}
+                            onChange={(e) =>
+                              setEditingRuleForm((prev) =>
+                                prev ? { ...prev, active: e.target.checked } : null
+                              )
+                            }
+                            style={{ cursor: 'pointer' }}
+                          />
+                        );
+                      }
+                      return rule.active ? '✅' : '❌';
+                    },
                   },
                 ]}
-                actions={(rule) => (
-                  <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-                    <button
-                      data-testid={`rule-edit-${rule.id}`}
-                      onClick={() => handleUpdateRule(rule)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.tertiary;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.secondary}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      data-testid={`rule-delete-${rule.id}`}
-                      onClick={() => handleDeleteRule(rule.id)}
-                      onMouseEnter={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.error.bg;
-                      }}
-                      onMouseLeave={(e) => {
-                        const colors = getColors(theme);
-                        e.currentTarget.style.backgroundColor = colors.background.primary;
-                      }}
-                      style={styles.button.danger}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                actions={(rule) => {
+                  if (editingRuleId === rule.id) {
+                    return (
+                      <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                        <button
+                          data-testid={`rule-save-${rule.id}`}
+                          onClick={() => handleSaveRule(rule.id)}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primaryHover;
+                            e.currentTarget.style.borderColor = colors.primaryBorder;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.primary;
+                            e.currentTarget.style.borderColor = colors.primary;
+                          }}
+                          style={styles.button.primary}
+                        >
+                          Save
+                        </button>
+                        <button
+                          data-testid={`rule-cancel-${rule.id}`}
+                          onClick={handleCancelEditRule}
+                          onMouseEnter={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                          }}
+                          onMouseLeave={(e) => {
+                            const colors = getColors(theme);
+                            e.currentTarget.style.backgroundColor = colors.background.primary;
+                          }}
+                          style={styles.button.secondary}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+                      <button
+                        data-testid={`rule-edit-${rule.id}`}
+                        onClick={() => handleStartEditRule(rule)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.tertiary;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.secondary}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        data-testid={`rule-delete-${rule.id}`}
+                        onClick={() => handleDeleteRule(rule.id)}
+                        onMouseEnter={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.error.bg;
+                        }}
+                        onMouseLeave={(e) => {
+                          const colors = getColors(theme);
+                          e.currentTarget.style.backgroundColor = colors.background.primary;
+                        }}
+                        style={styles.button.danger}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  );
+                }}
                 emptyMessage="No discount rules found."
               />
             </div>

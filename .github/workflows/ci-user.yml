@@ -48,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: Start Pact Broker (docker compose)
-        run: docker-compose up -d
+        run: docker compose up -d
 
       - name: Wait for Pact Broker
         run: |
@@ -75,4 +75,4 @@ jobs:
 
       - name: Stop Pact Broker
         if: always()
-        run: docker-compose down
+        run: docker compose down

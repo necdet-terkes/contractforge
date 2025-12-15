@@ -45,8 +45,14 @@ jobs:
       - name: Lint (root)
         run: npm run lint
 
-  playwright-mock:
+  broker-check:
     needs: ui-node
+    uses: ./.github/workflows/_pact-broker-check.yml
+    secrets: inherit
+
+  playwright-mock:
+    needs: [ui-node, broker-check]
+    if: ${{ needs.broker-check.outputs.broker_ready == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,19 +67,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start Pact Broker (docker compose)
-        run: docker compose up -d
-
-      - name: Wait for Pact Broker
-        run: |
-          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
-
       - name: Pull pacts from broker (fallback to local)
         run: npm run pacts:pull
         env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-          PACT_BROKER_USERNAME: pact
-          PACT_BROKER_PASSWORD: pact
+          PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
         continue-on-error: true
 
       - name: Generate mocks from pacts
@@ -114,22 +113,9 @@ jobs:
           for port in 5001 5002 5003; do
             PID=$(lsof -ti:$port 2>/dev/null || ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
             if [ -n "$PID" ] && [ "$PID" != "-" ]; then
-              kill $PID 2>/dev/null || true
+              kill $PID 2>/dev/null || true;
             fi
           done
           if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) 2>/dev/null || true; fi
           if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) 2>/dev/null || true; fi
           if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) 2>/dev/null || true; fi
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-ui
-          path: ui-app/playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Stop Pact Broker
-        if: always()
-        run: docker compose down

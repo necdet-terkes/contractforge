@@ -255,20 +255,20 @@ npm run lint
 npm run test:e2e --workspace ui-app
 ```
 
-**System workflow (ci-system.yml) locally (mock mode):**
+**System workflow (ci-system.yml) locally (mock mode, shared broker):**
 
 ```bash
-# Start broker (compose mounts DB volume locally)
-docker-compose up -d
-# Publish consumer contracts and verify providers
+# With shared broker (recommended)
+PACT_BROKER_BASE_URL=... \
+PACT_BROKER_USERNAME=... \
+PACT_BROKER_PASSWORD=... \
 npm run pact:consumer:all --workspace orchestrator-api
+
 npm run pact:verify
-# Generate mocks and run mock-mode UI tests
 npm run pacts:pull
 npm run mocks:generate
 npm run mocks:start
 MOCK_MODE=true VITE_MOCK_MODE=true npx playwright test --project=mock-mode
-docker-compose down
 ```
 
 #### Manual System Workflow Trigger

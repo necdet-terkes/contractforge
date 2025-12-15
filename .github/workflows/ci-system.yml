@@ -7,6 +7,10 @@ on:
         description: 'Run real-mode admin CRUD UI tests'
         required: false
         default: 'false'
+      use_local_broker:
+        description: 'Use local docker-compose broker instead of shared broker'
+        required: false
+        default: 'false'
   schedule:
     - cron: '0 2 * * *' # nightly UTC
   push:
@@ -26,7 +30,13 @@ on:
       - '.eslintrc*'
 
 jobs:
+  broker-check:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.use_local_broker != 'true' }}
+    uses: ./.github/workflows/_pact-broker-check.yml
+    secrets: inherit
+
   mock-suite:
+    needs: ${{ github.event_name != 'workflow_dispatch' || inputs.use_local_broker != 'true' ? 'broker-check' : '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,37 +51,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start Pact Broker (docker compose)
+      - name: Configure broker env
+        id: broker-env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.use_local_broker }}" = "true" ]; then
+            echo "mode=local" >> $GITHUB_OUTPUT
+          else
+            echo "mode=shared" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Start local Pact Broker (docker compose)
+        if: steps.broker-env.outputs.mode == 'local'
         run: docker compose up -d
 
-      - name: Wait for Pact Broker
+      - name: Wait for local Pact Broker
+        if: steps.broker-env.outputs.mode == 'local'
         run: |
-          timeout 60 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+          timeout 60 bash -c 'until curl -f http://localhost:9292 || curl -f -u pact:pact http://localhost:9292; do sleep 2; done'
 
       - name: Publish consumer contracts (orchestrator)
         run: npm run pact:consumer:all --workspace orchestrator-api
         env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-          PACT_BROKER_USERNAME: pact
-          PACT_BROKER_PASSWORD: pact
+          PACT_BROKER_BASE_URL: ${{ steps.broker-env.outputs.mode == 'local' && 'http://localhost:9292' || secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_PASSWORD }}
           PACT_CONSUMER_VERSION: ${{ github.sha }}
           PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
 
       - name: Verify providers (all)
         run: npm run pact:verify
         env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-          PACT_BROKER_USERNAME: pact
-          PACT_BROKER_PASSWORD: pact
+          PACT_BROKER_BASE_URL: ${{ steps.broker-env.outputs.mode == 'local' && 'http://localhost:9292' || secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_PASSWORD }}
           PACT_PROVIDER_VERSION: ${{ github.sha }}
           PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
 
       - name: Pull pacts from broker
         run: npm run pacts:pull
         env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-          PACT_BROKER_USERNAME: pact
-          PACT_BROKER_PASSWORD: pact
+          PACT_BROKER_BASE_URL: ${{ steps.broker-env.outputs.mode == 'local' && 'http://localhost:9292' || secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ steps.broker-env.outputs.mode == 'local' && 'pact' || secrets.PACT_BROKER_PASSWORD }}
 
       - name: Generate mocks from contracts
         run: npm run mocks:generate
@@ -118,8 +139,8 @@ jobs:
           if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) 2>/dev/null || true; fi
           if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) 2>/dev/null || true; fi
 
-      - name: Stop Pact Broker
-        if: always()
+      - name: Stop local Pact Broker
+        if: always() && steps.broker-env.outputs.mode == 'local'
         run: docker compose down
 
   real-mode:

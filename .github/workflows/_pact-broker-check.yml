@@ -1,0 +1,70 @@
+name: Pact Broker Check (Reusable)
+
+on:
+  workflow_call:
+    outputs:
+      broker_ready:
+        description: 'Whether broker is reachable and secrets are configured'
+        value: ${{ jobs.check.outputs.broker_ready }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      broker_ready: ${{ steps.result.outputs.broker_ready }}
+    steps:
+      - name: Determine event and secrets presence
+        id: env
+        run: |
+          echo "event_name=${{ github.event_name }}" >> $GITHUB_OUTPUT
+
+      - name: Validate broker secrets
+        id: validate
+        run: |
+          missing=false
+          if [ -z "${{ secrets.PACT_BROKER_BASE_URL }}" ] || [ -z "${{ secrets.PACT_BROKER_USERNAME }}" ] || [ -z "${{ secrets.PACT_BROKER_PASSWORD }}" ]; then
+            missing=true
+          fi
+
+          if [ "$missing" = "true" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "::warning::PACT_BROKER_* secrets missing. Pact publish/verify will be skipped for this PR workflow." >&2
+              echo "broker_ready=false" >> $GITHUB_OUTPUT
+              exit 0
+            else
+              echo "::error::PACT_BROKER_* secrets missing. Configure repo/environment secrets before running on main." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Check broker connectivity
+        id: ping
+        env:
+          PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
+        run: |
+          # Quiet connectivity check - do not echo secrets
+          if ! curl -fsS "$PACT_BROKER_BASE_URL" >/dev/null 2>&1; then
+            # Try basic auth if required
+            if ! curl -fsS -u "$PACT_BROKER_USERNAME:$PACT_BROKER_PASSWORD" "$PACT_BROKER_BASE_URL" >/dev/null 2>&1; then
+              if [ "${{ github.event_name }}" = "pull_request" ]; then
+                echo "::warning::Unable to reach Pact Broker at PACT_BROKER_BASE_URL. Pact steps will be skipped." >&2
+                echo "status=unreachable" >> $GITHUB_OUTPUT
+                exit 0
+              else
+                echo "::error::Unable to reach Pact Broker at PACT_BROKER_BASE_URL. Check URL and credentials." >&2
+                exit 1
+              fi
+            fi
+          fi
+          echo "status=ok" >> $GITHUB_OUTPUT
+
+      - name: Set result
+        id: result
+        run: |
+          if [ "${{ steps.validate.outcome }}" = "success" ] && [ "${{ steps.ping.outputs.status }}" = "ok" ]; then
+            echo "broker_ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "broker_ready=false" >> $GITHUB_OUTPUT
+          fi

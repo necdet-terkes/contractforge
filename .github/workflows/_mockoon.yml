@@ -12,17 +12,17 @@ on:
         description: 'Pact Broker URL (if generating from broker)'
         required: false
         type: string
-        default: 'http://localhost:9292'
+        default: ''
       broker_username:
         description: 'Pact Broker username'
         required: false
         type: string
-        default: 'pact'
+        default: ''
       broker_password:
         description: 'Pact Broker password'
         required: false
         type: string
-        default: 'pact'
+        default: ''
 
 jobs:
   mockoon:
@@ -60,16 +60,11 @@ jobs:
             exit 0
           fi
 
-          # Check pact files from both sources:
-          # 1. tools/mockoon/pacts/ (broker'dan çekilen veya kopyalanan)
-          # 2. orchestrator-api/pacts/ (yerel consumer testlerinden oluşan)
-          # Get the newest timestamp from all pact files
+          # Check pact files from both sources
           NEWEST_PACT_TIME=0
 
-          # Check broker/copied pacts first (tools/mockoon/pacts/)
           for pact_file in tools/mockoon/pacts/orchestrator-api-*.json; do
             if [ -f "$pact_file" ]; then
-              # Try macOS stat first, then Linux stat
               PACT_TIME=$(stat -f %m "$pact_file" 2>/dev/null || stat -c %Y "$pact_file" 2>/dev/null || echo 0)
               if [ "$PACT_TIME" -gt "$NEWEST_PACT_TIME" ]; then
                 NEWEST_PACT_TIME=$PACT_TIME
@@ -77,10 +72,8 @@ jobs:
             fi
           done
 
-          # Check local pacts (orchestrator-api/pacts/)
           for pact_file in orchestrator-api/pacts/orchestrator-api-*.json; do
             if [ -f "$pact_file" ]; then
-              # Try macOS stat first, then Linux stat
               PACT_TIME=$(stat -f %m "$pact_file" 2>/dev/null || stat -c %Y "$pact_file" 2>/dev/null || echo 0)
               if [ "$PACT_TIME" -gt "$NEWEST_PACT_TIME" ]; then
                 NEWEST_PACT_TIME=$PACT_TIME
@@ -88,7 +81,6 @@ jobs:
             fi
           done
 
-          # If no pact files found, we need to regenerate
           if [ "$NEWEST_PACT_TIME" -eq 0 ]; then
             echo "mocks_exist=true" >> $GITHUB_OUTPUT
             echo "needs_regeneration=true" >> $GITHUB_OUTPUT
@@ -96,14 +88,9 @@ jobs:
             exit 0
           fi
 
-          # For local pacts, check if pact files are newer than mock files
-          NEEDS_REGENERATION=false
-
-          # Get the oldest timestamp from mock files
           OLDEST_MOCK_TIME=9999999999
           for mock_file in tools/mockoon/generated/*.json; do
             if [ -f "$mock_file" ]; then
-              # Try macOS stat first, then Linux stat
               MOCK_TIME=$(stat -f %m "$mock_file" 2>/dev/null || stat -c %Y "$mock_file" 2>/dev/null || echo 9999999999)
               if [ "$MOCK_TIME" -lt "$OLDEST_MOCK_TIME" ]; then
                 OLDEST_MOCK_TIME=$MOCK_TIME
@@ -111,24 +98,23 @@ jobs:
             fi
           done
 
-          # If any pact is newer than the oldest mock, regenerate
           if [ "$NEWEST_PACT_TIME" -gt "$OLDEST_MOCK_TIME" ]; then
-            NEEDS_REGENERATION=true
-            echo "Pact contracts are newer than mocks (pact timestamp: $NEWEST_PACT_TIME > mock timestamp: $OLDEST_MOCK_TIME), will regenerate"
+            echo "needs_regeneration=true" >> $GITHUB_OUTPUT
+            echo "Pact contracts are newer than mocks, will regenerate"
           else
-            echo "Mocks are up-to-date with pact contracts (pact: $NEWEST_PACT_TIME <= mock: $OLDEST_MOCK_TIME)"
+            echo "needs_regeneration=false" >> $GITHUB_OUTPUT
+            echo "Mocks are up-to-date with pact contracts"
           fi
 
           echo "mocks_exist=true" >> $GITHUB_OUTPUT
-          echo "needs_regeneration=$NEEDS_REGENERATION" >> $GITHUB_OUTPUT
 
       - name: Pull pacts
         if: (inputs.action == 'generate') || (inputs.action == 'start' && steps.check-mocks.outputs.needs_regeneration == 'true')
         run: npm run pacts:pull
         env:
-          PACT_BROKER_BASE_URL: ${{ inputs.broker_url }}
-          PACT_BROKER_USERNAME: ${{ inputs.broker_username }}
-          PACT_BROKER_PASSWORD: ${{ inputs.broker_password }}
+          PACT_BROKER_BASE_URL: ${{ inputs.broker_url != '' && inputs.broker_url || secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_USERNAME: ${{ inputs.broker_username != '' && inputs.broker_username || secrets.PACT_BROKER_USERNAME }}
+          PACT_BROKER_PASSWORD: ${{ inputs.broker_password != '' && inputs.broker_password || secrets.PACT_BROKER_PASSWORD }}
 
       - name: Generate Mockoon mocks
         if: (inputs.action == 'generate') || (inputs.action == 'start' && steps.check-mocks.outputs.needs_regeneration == 'true')
@@ -170,18 +156,12 @@ jobs:
       - name: Stop Mockoon mocks
         if: inputs.action == 'stop'
         run: |
-          # Kill processes by port since PID files may not be accessible across jobs
-          # Find processes listening on mock ports and kill them
-          # Try lsof first, fallback to ss/netstat if lsof is not available
           for port in 5001 5002 5003; do
-            # Try lsof (common on Ubuntu)
             PID=$(lsof -ti:$port 2>/dev/null || true)
             if [ -z "$PID" ]; then
-              # Fallback to ss (modern alternative)
               PID=$(ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
             fi
             if [ -z "$PID" ]; then
-              # Fallback to netstat (older systems)
               PID=$(netstat -ltnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | head -1 || true)
             fi
             if [ -n "$PID" ] && [ "$PID" != "-" ]; then
@@ -189,7 +169,6 @@ jobs:
               kill $PID 2>/dev/null || true
             fi
           done
-          # Also try PID files as fallback (for same-job cleanup)
           if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) 2>/dev/null || true; fi
           if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) 2>/dev/null || true; fi
           if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) 2>/dev/null || true; fi

@@ -52,7 +52,7 @@ jobs:
 
       - name: Wait for Pact Broker
         run: |
-          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; do sleep 2; done'
+          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
 
       - name: Run Pact consumer tests and publish
         run: npm run pact:consumer:all --workspace orchestrator-api

@@ -1,0 +1,185 @@
+name: CI - System (Mock + Optional Real)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_real_mode:
+        description: 'Run real-mode admin CRUD UI tests'
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 2 * * *' # nightly UTC
+  push:
+    branches:
+      - main
+    paths:
+      - 'ui-app/**'
+      - 'orchestrator-api/**'
+      - 'inventory-api/**'
+      - 'user-api/**'
+      - 'pricing-api/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+
+jobs:
+  mock-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Pact Broker (docker compose)
+        run: docker-compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 60 bash -c 'until curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; do sleep 2; done'
+
+      - name: Publish consumer contracts (orchestrator)
+        run: npm run pact:consumer:all --workspace orchestrator-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_CONSUMER_VERSION: ${{ github.sha }}
+          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
+
+      - name: Verify providers (all)
+        run: npm run pact:verify
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_PROVIDER_VERSION: ${{ github.sha }}
+          PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
+
+      - name: Pull pacts from broker
+        run: npm run pacts:pull
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+
+      - name: Generate mocks from contracts
+        run: npm run mocks:generate
+
+      - name: Start Mockoon mocks
+        run: |
+          npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001 > /tmp/mockoon-inventory.log 2>&1 &
+          echo $! > /tmp/mockoon-inventory.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/user-api.json --port 5002 > /tmp/mockoon-user.log 2>&1 &
+          echo $! > /tmp/mockoon-user.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/pricing-api.json --port 5003 > /tmp/mockoon-pricing.log 2>&1 &
+          echo $! > /tmp/mockoon-pricing.pid
+          sleep 3
+
+      - name: Wait for mocks
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:5001/products && curl -f http://localhost:5002/users && curl -f http://localhost:5003/pricing/rules; do sleep 2; done'
+
+      - name: Run Playwright (mock mode)
+        run: npx playwright test --project=mock-mode
+        env:
+          VITE_MOCK_MODE: 'true'
+          MOCK_MODE: 'true'
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-system-mock
+          path: ui-app/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Mockoon mocks
+        if: always()
+        run: |
+          for port in 5001 5002 5003; do
+            PID=$(lsof -ti:$port 2>/dev/null || ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              kill $PID 2>/dev/null || true
+            fi
+          done
+          if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) 2>/dev/null || true; fi
+
+      - name: Stop Pact Broker
+        if: always()
+        run: docker-compose down
+
+  real-mode:
+    needs: mock-suite
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_real_mode == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start real APIs
+        run: |
+          npm run dev:inventory > /tmp/inventory-api.log 2>&1 &
+          echo $! > /tmp/inventory-api.pid
+          npm run dev:user > /tmp/user-api.log 2>&1 &
+          echo $! > /tmp/user-api.pid
+          npm run dev:pricing > /tmp/pricing-api.log 2>&1 &
+          echo $! > /tmp/pricing-api.pid
+          npm run dev:orchestrator > /tmp/orchestrator-api.log 2>&1 &
+          echo $! > /tmp/orchestrator-api.pid
+          sleep 5
+
+      - name: Wait for real APIs
+        run: |
+          timeout 45 bash -c 'until curl -f http://localhost:4001/products && curl -f http://localhost:4002/users && curl -f http://localhost:4003/pricing/rules && curl -f http://localhost:4000/catalog; do sleep 2; done'
+
+      - name: Run Playwright (real mode)
+        run: npx playwright test --project=real-mode
+        env:
+          VITE_MOCK_MODE: 'false'
+          MOCK_MODE: 'false'
+
+      - name: Upload Playwright artifacts (real mode)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-system-real
+          path: ui-app/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop real APIs
+        if: always()
+        run: |
+          for port in 4000 4001 4002 4003; do
+            PID=$(lsof -ti:$port 2>/dev/null || ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              kill $PID 2>/dev/null || true
+            fi
+          done
+          if [ -f /tmp/orchestrator-api.pid ]; then kill $(cat /tmp/orchestrator-api.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/inventory-api.pid ]; then kill $(cat /tmp/inventory-api.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/user-api.pid ]; then kill $(cat /tmp/user-api.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/pricing-api.pid ]; then kill $(cat /tmp/pricing-api.pid) 2>/dev/null || true; fi

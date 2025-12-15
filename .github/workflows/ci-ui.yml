@@ -1,0 +1,121 @@
+name: CI - UI App
+
+on:
+  pull_request:
+    paths:
+      - 'ui-app/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  push:
+    branches:
+      - main
+    paths:
+      - 'ui-app/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  workflow_dispatch: {}
+
+jobs:
+  ui-node:
+    uses: ./.github/workflows/_node-ci.yml
+    with:
+      workspace: 'ui-app'
+      run_coverage: false
+    secrets: inherit
+
+  playwright-mock:
+    needs: ui-node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Pact Broker (docker compose)
+        run: docker-compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; do sleep 2; done'
+
+      - name: Pull pacts from broker (fallback to local)
+        run: npm run pacts:pull
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+        continue-on-error: true
+
+      - name: Generate mocks from pacts
+        run: npm run mocks:generate
+
+      - name: Verify mock files exist
+        run: |
+          if [ ! -f "tools/mockoon/generated/inventory-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/user-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "❌ Mock files are missing. Cannot run Playwright tests in mock mode."
+            exit 1
+          fi
+
+      - name: Start Mockoon mocks
+        run: |
+          npx @mockoon/cli start --data tools/mockoon/generated/inventory-api.json --port 5001 > /tmp/mockoon-inventory.log 2>&1 &
+          echo $! > /tmp/mockoon-inventory.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/user-api.json --port 5002 > /tmp/mockoon-user.log 2>&1 &
+          echo $! > /tmp/mockoon-user.pid
+          npx @mockoon/cli start --data tools/mockoon/generated/pricing-api.json --port 5003 > /tmp/mockoon-pricing.log 2>&1 &
+          echo $! > /tmp/mockoon-pricing.pid
+          sleep 3
+
+      - name: Wait for mocks
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:5001/products && curl -f http://localhost:5002/users && curl -f http://localhost:5003/pricing/rules; do sleep 2; done'
+
+      - name: Run Playwright (mock mode only)
+        run: npx playwright test --project=mock-mode
+        env:
+          VITE_MOCK_MODE: 'true'
+          MOCK_MODE: 'true'
+
+      - name: Stop Mockoon mocks
+        if: always()
+        run: |
+          for port in 5001 5002 5003; do
+            PID=$(lsof -ti:$port 2>/dev/null || ss -ltnp 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 | head -1 || true)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              kill $PID 2>/dev/null || true
+            fi
+          done
+          if [ -f /tmp/mockoon-inventory.pid ]; then kill $(cat /tmp/mockoon-inventory.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/mockoon-user.pid ]; then kill $(cat /tmp/mockoon-user.pid) 2>/dev/null || true; fi
+          if [ -f /tmp/mockoon-pricing.pid ]; then kill $(cat /tmp/mockoon-pricing.pid) 2>/dev/null || true; fi
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-ui
+          path: ui-app/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Pact Broker
+        if: always()
+        run: docker-compose down

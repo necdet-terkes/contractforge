@@ -1,0 +1,76 @@
+name: CI - Orchestrator API
+
+on:
+  pull_request:
+    paths:
+      - 'orchestrator-api/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  push:
+    branches:
+      - main
+    paths:
+      - 'orchestrator-api/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  workflow_dispatch: {}
+
+jobs:
+  node-ci:
+    uses: ./.github/workflows/_node-ci.yml
+    with:
+      workspace: 'orchestrator-api'
+      run_coverage: true
+    secrets: inherit
+
+  pact-consumer:
+    needs: node-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Pact Broker (docker compose)
+        run: docker-compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; do sleep 2; done'
+
+      - name: Run Pact consumer tests and publish
+        run: npm run pact:consumer:all --workspace orchestrator-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_CONSUMER_VERSION: ${{ github.sha }}
+          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
+
+      - name: Upload pact contracts as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-pacts
+          path: orchestrator-api/pacts/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Stop Pact Broker
+        if: always()
+        run: docker-compose down

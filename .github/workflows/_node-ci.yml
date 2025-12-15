@@ -33,7 +33,7 @@ jobs:
         run: npm run typecheck --workspace ${{ inputs.workspace }} --if-present || npm run typecheck
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint --workspace ${{ inputs.workspace }} --if-present || npm run lint
 
       - name: Unit tests
         if: inputs.run_coverage != true

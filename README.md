@@ -201,44 +201,24 @@ Notes:
 - **pre-commit**: lint-staged (eslint --fix + prettier write) then `npm run test:unit`
 - **pre-push**: `npm run check` (typecheck + lint + unit tests)
 
-### CI (Multi-Pipeline Monorepo)
+### CI (Split Pipelines - Simulated Multi-Repo)
 
-ContractForge uses a **multi-pipeline monorepo** CI architecture where each service has its own pipeline that runs based on path filters. This mimics a "multi-repo" setup while maintaining monorepo benefits.
+Each service/team has its own workflow with path filters (pull_request + push to main + manual), plus a system-level workflow:
 
-#### Architecture
+- `ci-orchestrator.yml` – orchestrator-api unit + Pact consumer publish (broker service per job)
+- `ci-inventory.yml` – inventory-api unit + provider verification (broker service per job)
+- `ci-user.yml` – user-api unit + provider verification (broker service per job)
+- `ci-pricing.yml` – pricing-api unit + provider verification (broker service per job)
+- `ci-ui.yml` – ui-app typecheck/lint + Playwright mock-mode (pull pacts → generate mocks → start Mockoon)
+- `ci-system.yml` – nightly/manual integration: start broker → consumer publish → provider verify → generate mocks → UI Playwright mock-mode (optional real-mode on schedule/flag)
 
-**Reusable Workflows** (`.github/workflows/_*.yml`):
+**Path filters** (trigger each workflow when related paths change):
+- Service folders (`inventory-api/**`, `user-api/**`, `pricing-api/**`, `orchestrator-api/**`, `ui-app/**`)
+- Shared tooling/config (`tools/**`, `.github/**`, `package*.json`, `tsconfig*.json`, `.eslintrc*`)
 
-- `_node-ci.yml` - Common Node.js setup, typecheck, lint, unit tests, coverage
-- `_mockoon.yml` - Mockoon mock generation and management with smart contract change detection
-- `_playwright.yml` - Playwright E2E test execution with mock validation
-
-**Service-Specific Pipelines**:
-
-- `inventory-ci.yml` - Runs when `inventory-api/**` changes
-- `user-ci.yml` - Runs when `user-api/**` changes
-- `pricing-ci.yml` - Runs when `pricing-api/**` changes
-- `orchestrator-ci.yml` - Runs when `orchestrator-api/**` changes
-- `ui-ci.yml` - Runs when `ui-app/**` changes
-- `integration-ci.yml` - Runs when any service changes (full integration tests)
-
-#### Pipeline Triggers
-
-| Pipeline            | Triggers On                                       | What It Runs                                               |
-| ------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
-| **inventory-ci**    | `inventory-api/**`, shared configs                | Unit tests, Pact provider verification                     |
-| **user-ci**         | `user-api/**`, shared configs                     | Unit tests, Pact provider verification                     |
-| **pricing-ci**      | `pricing-api/**`, shared configs                  | Unit tests, Pact provider verification                     |
-| **orchestrator-ci** | `orchestrator-api/**`, shared configs             | Unit tests, Pact consumer tests + publish                  |
-| **ui-ci**           | `ui-app/**`, shared configs                       | Typecheck, lint, Playwright (mock mode, with validation)   |
-| **integration-ci**  | Any service change, `tools/mockoon/**`, workflows | Full stack: all tests, Pact flow, mocks, E2E (mock + real) |
-
-**Shared Configs** (trigger all pipelines):
-
-- `package.json`, `package-lock.json`
-- `tsconfig*.json`, `.eslintrc*`
-- `jest.base.config.ts`
-- `tools/**` (if used by service)
+**Reusable building blocks**:
+- `_node-ci.yml` – typecheck, lint, unit/coverage for a workspace
+- `_playwright.yml` / `_mockoon.yml` remain for reuse, but main flows are inline for clarity
 
 #### Running Pipelines Locally
 
@@ -275,65 +255,48 @@ npm run lint
 npm run test:e2e --workspace ui-app
 ```
 
-**Full integration (simulates integration-ci.yml):**
+**System workflow (ci-system.yml) locally (mock mode):**
 
 ```bash
-# Run all checks
-npm run typecheck
-npm run lint
-npm run test:coverage
-
-# Full Pact flow
-npm run pact:all
-
-# Generate mocks and run E2E
-npm run mocks:dev
-npm run test:e2e
+# Start broker (compose mounts DB volume locally)
+docker-compose up -d
+# Publish consumer contracts and verify providers
+npm run pact:consumer:all --workspace orchestrator-api
+npm run pact:verify
+# Generate mocks and run mock-mode UI tests
+npm run pacts:pull
+npm run mocks:generate
+npm run mocks:start
+MOCK_MODE=true VITE_MOCK_MODE=true npx playwright test --project=mock-mode
+docker-compose down
 ```
 
-#### Manual Pact Flow Trigger
+#### Manual System Workflow Trigger
 
-Pact Flow can be manually triggered via GitHub Actions UI:
-
-1. Go to Actions → Pact Flow & Mock Generation
+1. Go to Actions → CI - System (Mock + Optional Real)
 2. Click "Run workflow"
-3. Select branch and run
-
-This will run the full contract verification and mock generation flow.
+3. (Optional) set `run_real_mode: true` to include real-mode admin CRUD
 
 #### PR Gating
 
 **Recommended branch protection rules:**
 
-- **Required checks** (for service changes):
-  - `inventory-ci` (if `inventory-api/**` changed)
-  - `user-ci` (if `user-api/**` changed)
-  - `pricing-ci` (if `pricing-api/**` changed)
-  - `orchestrator-ci` (if `orchestrator-api/**` changed)
-  - `ui-ci` (if `ui-app/**` changed)
-- **Required for all PRs**:
-  - `integration-ci` (runs full stack validation)
+- `ci-orchestrator`
+- `ci-inventory`
+- `ci-user`
+- `ci-pricing`
+- `ci-ui`
+- `ci-system` (optional, for main/nightly confidence)
 
 **Setting up Branch Protection Rules:**
 
-To ensure feature branches pass CI before merging to `main`:
-
-1. Go to **Settings** → **Branches** in your GitHub repository
-2. Click **Add rule** or edit the existing rule for `main` branch
+1. Go to **Settings** → **Branches**
+2. Add/edit rule for `main`
 3. Enable **Require status checks to pass before merging**
-4. Add the following required status checks:
-   - `integration-ci` (always required)
-   - `inventory-ci` (if inventory-api changes)
-   - `user-ci` (if user-api changes)
-   - `pricing-ci` (if pricing-api changes)
-   - `orchestrator-ci` (if orchestrator-api changes)
-   - `ui-ci` (if ui-app changes)
+4. Add the checks above (only those relevant to changed paths need to be required)
 5. Optionally enable:
-   - **Require branches to be up to date before merging** (recommended)
-   - **Require conversation resolution before merging** (optional)
-6. Save the rule
-
-**Note:** GitHub Actions will automatically run the appropriate pipelines based on path filters. The branch protection rule ensures that these checks must pass before allowing merges to `main`.
+   - **Require branches to be up to date before merging**
+   - **Require conversation resolution before merging**
 
 **Test Reporting**:
 

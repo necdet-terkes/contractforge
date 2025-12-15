@@ -1,0 +1,78 @@
+name: CI - User API
+
+on:
+  pull_request:
+    paths:
+      - 'user-api/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  push:
+    branches:
+      - main
+    paths:
+      - 'user-api/**'
+      - 'tools/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - '.eslintrc*'
+  workflow_dispatch: {}
+
+jobs:
+  node-ci:
+    uses: ./.github/workflows/_node-ci.yml
+    with:
+      workspace: 'user-api'
+      run_coverage: true
+    secrets: inherit
+
+  pact-verify:
+    needs: node-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Pact Broker (docker compose)
+        run: docker-compose up -d
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 45 bash -c 'until curl -f -u pact:pact http://localhost:9292/health || curl -f http://localhost:9292/health; do sleep 2; done'
+
+      - name: Verify provider contracts (user-api)
+        run: npm run pact:verify --workspace user-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_PROVIDER_VERSION: ${{ github.sha }}
+          PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-user-api
+          path: |
+            user-api/coverage/
+            coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Pact Broker
+        if: always()
+        run: docker-compose down

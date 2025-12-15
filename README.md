@@ -291,13 +291,15 @@ npm run mocks:dev
 npm run test:e2e
 ```
 
-#### Manual Integration CI Trigger
+#### Manual Pact Flow Trigger
 
-Integration CI can be manually triggered via GitHub Actions UI:
+Pact Flow can be manually triggered via GitHub Actions UI:
 
-1. Go to Actions → Integration CI
+1. Go to Actions → Pact Flow & Mock Generation
 2. Click "Run workflow"
 3. Select branch and run
+
+This will run the full contract verification and mock generation flow.
 
 #### PR Gating
 

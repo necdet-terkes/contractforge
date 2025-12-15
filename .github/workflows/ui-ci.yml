@@ -19,7 +19,14 @@ on:
       - '.eslintrc*'
 
 jobs:
-  node-ci:
+  pact-flow:
+    # Wait for pact-flow workflow to complete successfully
+    # This ensures contracts are verified and mocks are generated
+    uses: ./.github/workflows/pact-flow.yml
+
+  ui-tests:
+    needs: pact-flow
+    # Unit tests for ui-app
     uses: ./.github/workflows/_node-ci.yml
     with:
       workspace: 'ui-app'
@@ -27,142 +34,50 @@ jobs:
     secrets: inherit
 
   download-mocks:
-    needs: node-ci
-    # Download mocks from Integration CI (if available)
+    needs: pact-flow
+    # Download mocks from pact-flow workflow
     # In real-world: Mocks are in shared mock server
-    # In POC: Mocks are shared via artifacts from Integration CI
+    # In POC: Mocks are shared via artifacts from pact-flow
     runs-on: ubuntu-latest
-    outputs:
-      mocks_available: ${{ steps.check-mocks.outputs.mocks_available }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download mockoon mocks from Integration CI
-        # Try to download mocks from Integration CI artifact
-        # If Integration CI hasn't run yet, generate from local pacts
+      - name: Download mockoon mocks from pact-flow
         uses: actions/download-artifact@v4
         with:
           name: mockoon-mocks
           path: tools/mockoon/generated
-          if-no-files-found: ignore
+          if-no-files-found: error
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if mocks are available
-        id: check-mocks
+      - name: Verify mocks are available
         run: |
-          if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
-             [ -f "tools/mockoon/generated/user-api.json" ] && \
-             [ -f "tools/mockoon/generated/pricing-api.json" ]; then
-            echo "mocks_available=true" >> $GITHUB_OUTPUT
-            echo "✓ Mocks downloaded from Integration CI"
+          if [ ! -f "tools/mockoon/generated/inventory-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/user-api.json" ] || \
+             [ ! -f "tools/mockoon/generated/pricing-api.json" ]; then
+            echo "❌ Mock files are missing. Cannot run Playwright tests in mock mode."
+            exit 1
           else
-            echo "mocks_available=false" >> $GITHUB_OUTPUT
-            echo "⚠ Mocks not available from Integration CI, will generate from contracts"
+            echo "✓ Mock files verified: all required mocks exist"
           fi
-
-  generate-mocks:
-    needs: [node-ci, download-mocks]
-    # Generate mocks if not available from Integration CI
-    # In real-world: Mocks are in shared mock server
-    # In POC: Mocks are shared via artifacts, or generated from contracts if not available
-    runs-on: ubuntu-latest
-    outputs:
-      mocks_generated: ${{ steps.check-final.outputs.mocks_generated }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download contracts if mocks not available
-        if: needs.download-mocks.outputs.mocks_available != 'true'
-        run: |
-          # Download contracts from Integration CI to generate mocks
-          # In real-world: Contracts are in shared persistent broker
-          # In POC: Contracts are shared via artifacts from Integration CI
-          mkdir -p tools/mockoon/pacts orchestrator-api/pacts
-        continue-on-error: true
-
-      - name: Download pact contracts from Integration CI
-        if: needs.download-mocks.outputs.mocks_available != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: pact-contracts
-          path: tools/mockoon/pacts
-          if-no-files-found: ignore
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download orchestrator contracts
-        if: needs.download-mocks.outputs.mocks_available != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: pact-contracts-orchestrator
-          path: orchestrator-api/pacts
-          if-no-files-found: ignore
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate mocks from contracts (if not downloaded)
-        if: needs.download-mocks.outputs.mocks_available != 'true'
-        id: generate
-        run: |
-          # Check if contracts are available to generate mocks
-          if [ -d "tools/mockoon/pacts" ] && [ "$(ls -A tools/mockoon/pacts/*.json 2>/dev/null)" ]; then
-            npm run mocks:generate
-            echo "mocks_generated=true" >> $GITHUB_OUTPUT
-            echo "✓ Mocks generated from Integration CI contracts"
-          elif [ -d "orchestrator-api/pacts" ] && [ "$(ls -A orchestrator-api/pacts/*.json 2>/dev/null)" ]; then
-            npm run mocks:generate
-            echo "mocks_generated=true" >> $GITHUB_OUTPUT
-            echo "✓ Mocks generated from local contracts (fallback)"
-          else
-            echo "mocks_generated=false" >> $GITHUB_OUTPUT
-            echo "⚠ No contracts found. Cannot generate mocks."
-          fi
-
-      - name: Check final mock availability
-        id: check-final
-        run: |
-          if [ -f "tools/mockoon/generated/inventory-api.json" ] && \
-             [ -f "tools/mockoon/generated/user-api.json" ] && \
-             [ -f "tools/mockoon/generated/pricing-api.json" ]; then
-            echo "mocks_generated=true" >> $GITHUB_OUTPUT
-            echo "✓ Mocks are available (from Integration CI or generated)"
-          else
-            echo "mocks_generated=false" >> $GITHUB_OUTPUT
-            echo "❌ Mocks are not available"
-          fi
-
-      - name: Verify mock files exist
-        if: steps.check-final.outputs.mocks_generated == 'true'
-        run: |
-          echo "✓ Mock files verified: all required mocks exist"
 
   start-mocks:
-    needs: generate-mocks
-    if: ${{ needs.generate-mocks.outputs.mocks_generated == 'true' }}
+    needs: download-mocks
     uses: ./.github/workflows/_mockoon.yml
     with:
       action: 'start'
 
   playwright-mock:
-    needs: [generate-mocks, start-mocks]
-    if: ${{ needs.generate-mocks.outputs.mocks_generated == 'true' }}
+    needs: start-mocks
     uses: ./.github/workflows/_playwright.yml
     with:
       project: 'mock-mode'
       mock_mode: true
 
   stop-mocks:
-    needs: [generate-mocks, playwright-mock]
-    if: ${{ always() && needs.generate-mocks.outputs.mocks_generated == 'true' }}
+    needs: [playwright-mock]
+    if: always()
     uses: ./.github/workflows/_mockoon.yml
     with:
       action: 'stop'

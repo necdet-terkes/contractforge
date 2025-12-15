@@ -1,0 +1,125 @@
+name: Pact Flow & Mock Generation
+
+on:
+  workflow_call: {}
+  pull_request:
+    paths:
+      - 'orchestrator-api/**'
+      - 'inventory-api/**'
+      - 'user-api/**'
+      - 'pricing-api/**'
+      - 'ui-app/**'
+      - 'tools/mockoon/**'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'orchestrator-api/**'
+      - 'inventory-api/**'
+      - 'user-api/**'
+      - 'pricing-api/**'
+      - 'ui-app/**'
+      - 'tools/mockoon/**'
+      - '.github/workflows/**'
+  workflow_dispatch: {}
+
+jobs:
+  pact-flow:
+    # Phase 1: Consumer tests → Broker → Provider verification → Mock generation
+    # This must succeed before other CI pipelines can run
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: pact_broker
+          POSTGRES_PASSWORD: pact_broker
+          POSTGRES_DB: pact_broker
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      pact-broker:
+        image: pactfoundation/pact-broker:latest
+        env:
+          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@postgres/pact_broker
+          PACT_BROKER_LOG_LEVEL: INFO
+          PACT_BROKER_BASIC_AUTH_USERNAME: pact
+          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+        ports:
+          - 9292:9292
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for Pact Broker
+        run: |
+          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
+
+      - name: Run Pact consumer tests and publish
+        # Step 1: Consumer (orchestrator) runs tests and publishes contracts to broker
+        run: npm run pact:consumer:all --workspace orchestrator-api
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_CONSUMER_VERSION: ${{ github.sha }}
+          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
+
+      - name: Verify all provider contracts
+        # Step 2: Providers verify against latest consumer contracts from broker
+        # If verification fails, this job fails → other CI pipelines won't run
+        run: npm run pact:verify
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+          PACT_PROVIDER_VERSION: ${{ github.sha }}
+          PACT_PROVIDER_BRANCH: ${{ github.ref_name }}
+
+      - name: Pull pacts from broker
+        # Step 3a: Pull latest contracts from broker for mock generation
+        run: npm run pacts:pull
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          PACT_BROKER_USERNAME: pact
+          PACT_BROKER_PASSWORD: pact
+
+      - name: Generate Mockoon mocks from Pact contracts
+        # Step 3b: Generate mocks from contracts (only if verification passed)
+        run: npm run mocks:generate
+
+      - name: Upload generated mocks as artifact
+        # Step 3c: Upload mocks so other CI pipelines can use them
+        # In real-world: Mocks are in shared mock server
+        # In POC: Mocks are shared via artifacts (simulates shared mock server)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mockoon-mocks
+          path: tools/mockoon/generated/*.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload pact contracts as artifact
+        # Also upload contracts for reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: pact-contracts
+          path: |
+            tools/mockoon/pacts/*.json
+            orchestrator-api/pacts/*.json
+          retention-days: 7
+          if-no-files-found: error

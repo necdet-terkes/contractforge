@@ -6,4 +6,3 @@ test-results
 .npm-cache
 pact-broker-data
 .husky
-

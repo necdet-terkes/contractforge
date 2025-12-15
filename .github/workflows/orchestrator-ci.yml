@@ -23,78 +23,16 @@ on:
       - 'tools/**'
 
 jobs:
-  node-ci:
+  pact-flow:
+    # Wait for pact-flow workflow to complete successfully
+    # This ensures contracts are verified and mocks are generated
+    uses: ./.github/workflows/pact-flow.yml
+
+  orchestrator-tests:
+    needs: pact-flow
+    # Unit and integration tests for orchestrator-api
     uses: ./.github/workflows/_node-ci.yml
     with:
       workspace: 'orchestrator-api'
       run_coverage: true
     secrets: inherit
-
-  pact-consumer:
-    needs: node-ci
-    # Consumer tests run and publish to broker
-    # In real-world: This would publish to a shared persistent broker
-    # In POC: Broker runs as service container (persistent within job)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: pact_broker
-          POSTGRES_PASSWORD: pact_broker
-          POSTGRES_DB: pact_broker
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      pact-broker:
-        image: pactfoundation/pact-broker:latest
-        env:
-          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@postgres/pact_broker
-          PACT_BROKER_LOG_LEVEL: INFO
-          PACT_BROKER_BASIC_AUTH_USERNAME: pact
-          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
-        ports:
-          - 9292:9292
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Wait for Pact Broker
-        run: |
-          timeout 30 bash -c 'until curl -f -u pact:pact http://localhost:9292 || curl -f http://localhost:9292; do sleep 2; done'
-
-      - name: Run Pact consumer tests and publish
-        # In real-world: Broker is persistent and shared across all teams
-        # In POC: Broker runs as service container (persistent within this job)
-        # Contract'lar broker'a publish edilir, Integration CI bunları kullanır
-        run: npm run pact:consumer:all --workspace orchestrator-api
-        env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-          PACT_BROKER_USERNAME: pact
-          PACT_BROKER_PASSWORD: pact
-          PACT_CONSUMER_VERSION: ${{ github.sha }}
-          PACT_CONSUMER_BRANCH: ${{ github.ref_name }}
-
-      - name: Upload pact contracts as artifact
-        # Contract'ları artifact olarak upload et (Integration CI ve diğer CI'lar kullanabilir)
-        # In real-world: Contracts are in shared persistent broker
-        # In POC: Contracts are shared via artifacts (simulates shared broker)
-        uses: actions/upload-artifact@v4
-        with:
-          name: pact-contracts-orchestrator
-          path: orchestrator-api/pacts/*.json
-          retention-days: 7
-          if-no-files-found: ignore
